@@ -11,7 +11,7 @@
 #include <sstream>
 #include <vector>
 
-static const std::string ZMAKE_VERSION = "ZMAKE VERSION 0.3.0";
+static const std::string ZMAKE_VERSION = "ZMAKE VERSION 0.3.1";
 
 // OS-SPECIFICS
 #ifdef _WIN32
@@ -1222,7 +1222,9 @@ R"(
                             if (ends_with(zpp_file_inc, ".zpp") || ends_with(zpp_file_inc, ".z")) {
                                 for (unsigned int j = 0; j < zfiles_inclist.size(); j++) {
                                     if (streqz(zfiles_inclist.at(j).filename().u8string(), zpp_file_inc)) {
-                                        zfiles.emplace_back(zfiles_inclist.at(j));
+                                        if (!str_is_in_vec(zfiles_inclist.at(j).u8string(), zfiles)) {
+                                            zfiles.emplace_back(zfiles_inclist.at(j));
+                                        }
                                         incfile = "//#include \"" + zpp_file_inc + "\"";
                                         goto inc_label;
                                     }

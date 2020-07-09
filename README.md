@@ -189,10 +189,13 @@ You can also compile using simply "zmake file.z" or "zmake file.z -flag name".
 
 If you add -o or not doesn't matter unless you specify -c -S or -E.
 
-Compiler flags:
+#### Compiler flags:
+
 -pedantic   -> -Wpedantic (just use Wpedantic always)
+
 -save-temps -> -save-temps=obj (not yet implemented)
 
-Clang-cl specific improvements (also applies for MSVC, but support for that compiler is limited overall):
+#### Clang-cl specific improvements (also applies for MSVC, but support for that compiler is limited overall):
 -fexceptions -> -EHsc
+
 -O0          -> -Od     // Clang-cl recognizes -Ofast as -O2 by default, but not -O0.
