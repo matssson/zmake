@@ -1,0 +1,4 @@
+string hello(string s) {
+    print("this is wrong, from /include!\n");
+    return s;
+}

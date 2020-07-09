@@ -42,10 +42,9 @@ On Windows, clang (or clang-cl) compiles with clang-cl, unlike clang++.
 No headers, so you don't have to worry about function prototypes
 and which order your functions are in.
 
-To include another file, just type: (NOTE: this is not yet implemented,
-right now every .zpp file is just included by default)
+To include another file, just type:
 ```cpp
-#include <otherfile.zpp>
+#include "otherfile.zpp"
 ```
 Note that \<algorithm\>, \<cstdlib\>, \<cstdio\>, \<ctime\>,
 \<iostream\>, \<string\> and \<random\> are provided by default.

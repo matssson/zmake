@@ -11,7 +11,7 @@
 #include <sstream>
 #include <vector>
 
-static const std::string ZMAKE_VERSION = "ZMAKE VERSION 0.2.1";
+static const std::string ZMAKE_VERSION = "ZMAKE VERSION 0.3.0";
 
 // OS-SPECIFICS
 #ifdef _WIN32
@@ -373,7 +373,7 @@ static inline bool str_is_in_vec(const std::string& str, const std::vector<std::
     Since everything is in the same compilation unit, we might want to automatically set everything to static.
 
     TODO:
-    Change the include system for zpp files so you have to #include them.
+    Passing "-o", "-c", "-S", "-E" and -save-temps to clang-cl
     save-temps -> save-temps=obj
     Clean up the ugly code.
 */
@@ -409,13 +409,14 @@ int main(int argc, char* argv[]) {
     bool use_no_run = false;            // Otherwise run it, NOTE: use_no_build is STATE_OPEN
     bool use_no_time = false;           // Otherwise print compilation time
     bool use_no_cmd = false;            // Otherwise hide the cmd
-    bool use_custom_zpp = true;         // Otherwise don't add defaultinclude and zpp features
+    bool use_only_cpp = false;          // Otherwise add defaultinclude and zpp features
     bool use_gitless = false;           // Don't create .git and .gitignore
     bool use_local_include = false;     // Otherwise use the global one
 
     // For building both with and without use_build_files
     std::vector<std::string> build_files;
     std::vector<std::filesystem::path> zfiles;  // /src, /lib, /global/lib
+    std::vector<std::filesystem::path> zfiles_inclist;  // /src, /lib, /global/lib
 
     // Commands used in everything
     std::vector<std::string> commands;
@@ -837,12 +838,6 @@ R"(
         else program_name = "\"" + program_name + "\"";
 
         // Fix config
-        if (std::filesystem::exists("defaultinclude.hpp")) {    // Local in cwd
-            use_local_include = true;
-        }
-        else {
-            if (!reset_default("defaultinclude.hpp")) return EXIT_FAILURE;
-        }
         if (use_build_files && !reset_default("defaultconfig.cfg")) return EXIT_FAILURE;
 
         if (!use_build_files && !std::filesystem::exists("zmake.cfg")) {
@@ -944,8 +939,8 @@ R"(
                                 return EXIT_FAILURE;
                             }
                             inc = matches[3];
-                            cfg_includes.insert(cfg_includes.begin(), in);
-                            cfg_inccommands.insert(cfg_inccommands.begin(), incmd);
+                            cfg_includes.emplace_back(in);
+                            cfg_inccommands.emplace_back(incmd);
                         }
                     }
                     else if (streqz(current_flag, "libraries")) {
@@ -959,8 +954,8 @@ R"(
                                 return EXIT_FAILURE;
                             }
                             inc = matches[3];
-                            cfg_libs.insert(cfg_libs.begin(), in);
-                            cfg_libcommands.insert(cfg_libcommands.begin(), incmd);
+                            cfg_libs.emplace_back(in);
+                            cfg_libcommands.emplace_back(incmd);
                         }
                     }
                 }
@@ -1024,8 +1019,8 @@ R"(
                     cppfiles.emplace_back(in + "*.cc");
                 }
                 else if (streqz(p.path().extension().u8string(), ".z", ".zpp")) {
-                    if (streqz(p.path().stem().u8string(), "main")) zfiles.insert(zfiles.begin(), p.path());
-                    else zfiles.emplace_back(p.path());
+                    if (streqz(p.path().stem().u8string(), "main")) zfiles_inclist.insert(zfiles_inclist.begin(), p.path());
+                    else zfiles_inclist.emplace_back(p.path());
                 }
             }
         }
@@ -1041,19 +1036,19 @@ R"(
                         if (std::filesystem::is_directory(p.path())) continue;
                         if (!streqz(p.path().extension().u8string(), ".z", ".zpp")) continue;
                         // No duplicates
-                        if (str_is_in_vec(p.path().u8string(), zfiles)) continue;
-                        zfiles.emplace_back(p.path().u8string());
+                        if (str_is_in_vec(p.path().u8string(), zfiles_inclist)) continue;
+                        zfiles_inclist.emplace_back(p.path().u8string());
                     }
                 }
                 else if (ends_with(build_files.at(i), ".z") || ends_with(build_files.at(i), ".zpp")) {
                     std::filesystem::path build_file_path = build_files.at(i);
-                    if (str_is_in_vec(build_file_path.u8string(), zfiles)) continue;
-                    zfiles.emplace_back(build_file_path.u8string());
+                    if (str_is_in_vec(build_file_path.u8string(), zfiles_inclist)) continue;
+                    zfiles_inclist.emplace_back(build_file_path.u8string());
                 }
             }
         }
 
-        if (zfiles.size() == 0) use_custom_zpp = false;
+        if (zfiles_inclist.size() == 0) use_only_cpp = true;
 
         // Find main
         int main_entry = -1;
@@ -1067,10 +1062,10 @@ R"(
         bool in_string = false;
         bool in_comment = false;
 
-        for (unsigned int i = 0; i < zfiles.size(); i++) {
-            qt.open(zfiles.at(i));
+        for (unsigned int i = 0; i < zfiles_inclist.size(); i++) {
+            qt.open(zfiles_inclist.at(i));
             if (!qt.is_open()) {
-                printz("- Couldn't open file \"", zfiles.at(i), "\", aborting.\n");
+                printz("- Couldn't open file \"", zfiles_inclist.at(i), "\", aborting.\n");
                 return EXIT_FAILURE;
             }
             while (getline(qt, read_line)) {
@@ -1123,34 +1118,39 @@ R"(
             if (main_entry != -1) break;
         }
         if (main_entry == -1) {
-            printz("- Couldn't find main function, aborting.\n");
-            return EXIT_FAILURE;
+            use_only_cpp = true;
+            if (cppfiles.size() == 0)  {
+                printz("- Couldn't find main function, aborting.\n");
+                return EXIT_FAILURE;
+            }
         }
         in_string = false;
         in_comment = false;
         read_line_loop = false;
 
         // Find more files in includes
-        if (!use_build_files) {
-            for (const auto& p: std::filesystem::recursive_directory_iterator("include")) {
-                if (std::filesystem::is_directory(p.path())) continue;
-                if (!streqz(p.path().extension().u8string(), ".z", ".zpp")) continue;
-                zfiles.emplace_back(p.path());
-            }
-        }
         for (unsigned int i = 0; i < cfg_includes.size(); i++) {
             for (const auto& p: std::filesystem::recursive_directory_iterator(cfg_includes.at(i))) {
                 if (std::filesystem::is_directory(p.path())) continue;
                 if (!streqz(p.path().extension().u8string(), ".z", ".zpp")) continue;
-                zfiles.emplace_back(p.path());
+                zfiles_inclist.emplace_back(p.path());
             }
         }
         // Defaultinclude in front
-        if (use_local_include) zfiles.insert(zfiles.begin(), "defaultinclude.hpp");
-        else zfiles.insert(zfiles.begin(), ZMAKE_ROOT + FOLDER_NOTATION + "global" + FOLDER_NOTATION + "defaultinclude.hpp");
+        if (!use_only_cpp) {
+            if (std::filesystem::exists("defaultinclude.hpp")) {    // Local in cwd
+                use_local_include = true;
+            }
+            else {
+                if (!reset_default("defaultinclude.hpp")) return EXIT_FAILURE;
+            }
+            if (use_local_include) zfiles_inclist.insert(zfiles_inclist.begin(), "defaultinclude.hpp");
+            else zfiles_inclist.insert(zfiles_inclist.begin(), ZMAKE_ROOT + FOLDER_NOTATION + "global" + FOLDER_NOTATION + "defaultinclude.hpp");
 
-        /* Put the zfiles into a cpp file */
-        if (use_custom_zpp) {
+            /* Put the .zpp files into a cpp file */
+            zfiles.emplace_back(zfiles_inclist.at(0));  // default
+            zfiles.emplace_back(zfiles_inclist.at(1));  // main
+
             // 2D vector to store includes along with which files included them to show in *_zmake.cpp
             std::vector<std::vector<std::string>> include_list;
             include_list.reserve(8);
@@ -1217,7 +1217,21 @@ R"(
                         if (std::regex_match(read_line, matches, reg_include)) {
                             bool include_already_exists = false;
                             std::string incfile = matches[1];
-                            //incfile = incfile.substr(1, incfile.length() - 2);
+                            std::string zpp_file_inc = incfile.substr(1, incfile.length() - 2);
+                            // Including a .zpp file
+                            if (ends_with(zpp_file_inc, ".zpp") || ends_with(zpp_file_inc, ".z")) {
+                                for (unsigned int j = 0; j < zfiles_inclist.size(); j++) {
+                                    if (streqz(zfiles_inclist.at(j).filename().u8string(), zpp_file_inc)) {
+                                        zfiles.emplace_back(zfiles_inclist.at(j));
+                                        incfile = "//#include \"" + zpp_file_inc + "\"";
+                                        goto inc_label;
+                                    }
+                                }
+                                printz("- Couldn't find file \"", zpp_file_inc, "\", aborting.\n");
+                                return EXIT_FAILURE;
+                            }
+                            else incfile = "#include " + incfile;
+                            inc_label:
                             for (unsigned int j = 0; j < include_list.size(); j++) {
                                 if (streqz(incfile, include_list.at(j).at(0))) {
                                     include_already_exists = true;
@@ -1332,10 +1346,9 @@ R"(
                                  + ZMAKE_VERSION + ", at " + timestrz() + ".\n\n"
                                  + "//// Includes\n";
             for (unsigned int i = 0; i < include_list.size(); i++) {
-                main_cpp += "#include " + include_list.at(i).at(0);
+                main_cpp += include_list.at(i).at(0);
                 // Add soft tabs
-                int tabsize = 9; // from "#include "
-                tabsize += include_list.at(i).at(0).length();
+                int tabsize = static_cast<int>(include_list.at(i).at(0).length());
                 tabsize = 4 - (tabsize % 4);
                 for (int j = 0; j < tabsize; j++) main_cpp += " ";
 
@@ -1376,17 +1389,17 @@ R"(
         for (unsigned int i = 0; i < cppfiles.size(); i++) {
             cppfiles.at(i) = "\"" + cppfiles.at(i) + "\"";
         }
-        for (unsigned int i = 0; i < cfg_libs.size(); i++) {
-            std::string temp_str = std::filesystem::absolute(cfg_libs.at(i)).u8string();
+        for (int i = static_cast<int>(cfg_libs.size() - 1); i >= 0; i--) {
+            std::string temp_str = std::filesystem::absolute(cfg_libs.at(static_cast<unsigned int>(i))).u8string();
             temp_str = "\"" + temp_str + "\"";
-            if (!streqz(cfg_libcommands.at(i), "")) temp_str += " " + cfg_libcommands.at(i);
+            if (!streqz(cfg_libcommands.at(static_cast<unsigned int>(i)), "")) temp_str += " " + cfg_libcommands.at(static_cast<unsigned int>(i));
             if (ends_with(compiler, "cl")) libpath_cl = " -libpath:" + temp_str + libpath_cl;
             else commands.insert(commands.begin(), "-L" + temp_str);
         }
-        for (unsigned int i = 0; i < cfg_includes.size(); i++) {
-            std::string temp_str = std::filesystem::absolute(cfg_includes.at(i)).u8string();
+        for (int i = static_cast<int>(cfg_includes.size() - 1); i >= 0; i--) {
+            std::string temp_str = std::filesystem::absolute(cfg_includes.at(static_cast<unsigned int>(i))).u8string();
             temp_str = "\"" + temp_str + "\"";
-            if (streqz(cfg_inccommands.at(i), "-w", "-W")) {
+            if (streqz(cfg_inccommands.at(static_cast<unsigned int>(i)), "-w", "-W")) {
                 if (streqz(compiler, "clang-cl")) temp_str = "-Xclang -isystem" + temp_str;
                 else temp_str = "-isystem" + temp_str;
             }
