@@ -1,0 +1,9 @@
+string hello(string s) {
+    print(s);
+    return s;
+}
+
+struct Book2 {
+    int pages;
+    std::string name;
+};

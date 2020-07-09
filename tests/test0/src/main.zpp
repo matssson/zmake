@@ -1,0 +1,30 @@
+#include <filesystem>
+//#include <iostreams>
+#include <cstdio>
+//#include "cstdio"
+
+struct Book {
+    int pages;
+    std::string name;
+};
+
+class Car {
+    std::string name;
+};
+
+union Card {
+    long value;
+    double somethingElse;
+};
+
+void testfcn() {
+    return;
+}
+
+typedef unsigned long long ull64;
+
+int main() {
+    print("Hello World!\n");
+    print("Your lucky number is: ", rng(1, 100), "\n");
+    hello(string("Calling a function from a different file!\n"));
+}
