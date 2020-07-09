@@ -20,7 +20,7 @@ static const std::string FOLDER_NOTATION = "\\";
 const bool ON_WINDOWS = true;
 
 #elif __linux__
-static const std::string ZMAKE_ROOT = "/opt/zmake";
+static const std::string ZMAKE_ROOT = std::filesystem::path(getenv("HOME")).u8string() + "/zmake";
 static const bool ON_WINDOWS = false;
 static const std::string FOLDER_NOTATION = "/";
 
@@ -335,7 +335,6 @@ static inline bool is_file_include(const std::string& str) {
     return false;
 }
 
-// The following are used instead of importing <algorithm>
 //static inline void to_unix_folder_notation(std::string& str) { for (char& c: str) if (c == '\\') c = '/'; }
 
 static inline bool str_is_in_vec(const std::string& str, const std::vector<std::string>& vec) {
@@ -352,7 +351,7 @@ static inline bool str_is_in_vec(const std::string& str, const std::vector<std::
 /*
     TAGS:
     zmake flags work with hyphens or slashes (-dev = /dev).
-    You can also type zmake gl projname (think gitless), to make a new program without git.
+    You can also type zmake gl projname (gl = gitless), to make a new program without git.
     -dev, -debug, -release
     -gcc, -clang-, -clang++, -msvc
     -nocmd, -notime, -nobuild, -norun, -run
@@ -452,8 +451,8 @@ int main(int argc, char* argv[]) {
             return EXIT_FAILURE;
         }
     }
-    else if (streqz(commands.at(0), "new", "gl")) {
-        if (streqz(commands.at(0), "gl")) use_gitless = true;
+    else if (streqz(commands.at(0), "new", "gl", "gitless")) {
+        if (streqz(commands.at(0), "gl", "gitless")) use_gitless = true;
         state = STATE_NEW;
         commands.erase(commands.begin());
         if (commands.size() == 0) {
@@ -571,7 +570,7 @@ R"(
 - Build and run the dev build with "zmake run".
 - Build the release build with "zmake build".
 - Build the debug build with "zmake debug".
-- Run the most recently compiled build with "zmake open".
+- Open the most recently compiled build with "zmake open".
 - Remove target files with "zmake clean".
 
 - You can also add any "-gccflags" at the end of your command
@@ -748,7 +747,7 @@ R"(
         std::string progname = programs.at(0).stem().u8string() + programs.at(0).extension().u8string();
         printz("- Opening " + progname + ".\n\n");
         std::string progcmd = "\"" + std::filesystem::absolute(programs.at(0)).u8string() + "\"";
-        std::system(progcmd.c_str());
+        system(progcmd.c_str());
 
         return EXIT_SUCCESS;
     }

@@ -1,29 +1,30 @@
-# zmake: A Build System for C++ with Sugar and no Headers
+# zmake: A Convenient and Customizable Build System for C++ (without Headers)
 A build system for C/C++ inspired by Rust's cargo,
-meant to be as convenient as possible.
-It comes with a few things to improve the quality of life (for myself),
-like the removal of headers, and automatically adding things
-I want for my programs written using this build system.
-It uses the file extension .z (or .zpp) and works seamlessly
-with other C/C++ code and headers.
+meant to be as convenient and simple as possible.
 
-Note that it achieves this by making everything public in scope,
-importing macros and functions, and using things in std.
+If you use the custom file extension .zpp (or .z) you also get things
+to improve the quality of life when coding in C++, like the removal of headers,
+and automatically adding things into one file for fast compilation, with forward declarations
+so you don't have to worry about the order of functions or includes.
+
+It achieves this by making everything global in scope,
+importing macros and functions, and using things from the std namespace -
+but all of this is customizable and it works seamlessly with other C/C++ code and headers.
 
 If you want to change what zmake includes by default,
-just edit the autoinclude.hpp header. You can also change the
+just edit the autoinclude.hpp header in /global. You can also change the
 default config this way by changing autoconfig.cfg.
 
 # How to Build
 Make a new project with "zmake new project_name".
 Then just put the code in the /src folder, if you have any libraries put them in
 /include and /lib, or specify them along with other build flags in zmake.cfg,
-or put them globally in C:\\zmake\\include and C:\\zmake\\lib.
+or put them globally in zmake/global/include and zmake/global/lib.
 
 Build and run the dev build with "zmake run".
 Build the release build with "zmake build".
 Build the debug build with "zmake debug".
-Run the most recently compiled build with "zmake open".
+Open the most recently compiled build with "zmake open".
 Remove target files with "zmake clean".
 
 You can also add any "-gccflags" at the end of your command
@@ -41,9 +42,10 @@ On Windows, clang (or clang-cl) compiles with clang-cl, unlike clang++.
 No headers, so you don't have to worry about function prototypes
 and which order your functions are in.
 
-To include another file, just type
+To include another file, just type: (NOTE: this is not yet implemented,
+right now every .zpp file is just included by default)
 ```cpp
-#include <otherfile.z>
+#include <otherfile.zpp>
 ```
 Note that \<algorithm\>, \<cstdlib\>, \<cstdio\>, \<ctime\>,
 \<iostream\>, \<string\> and \<random\> are provided by default.
@@ -51,9 +53,6 @@ Note that \<algorithm\>, \<cstdlib\>, \<cstdio\>, \<ctime\>,
 
 The following are in the global namespace:
 string, vector.
-
-And we have the following aliases (might not yet be implemented):
-fs = std::filesystem.
 
 ### Syntactic Sugar
 New Command             | Old Command
@@ -136,10 +135,18 @@ clang-cl -std:c++17 -EHsc -Ofast -march=native src/zmake.cpp -o zmake
 Now you can just call it from cmd, git bash, or any other terminal of choice!
 
 ### Linux
-On Linux, download the code to /opt/zmake and add the directory to PATH.
-If you're too lazy to change the PATH you can create the following alias:
+On Linux, download the code to /$HOME/zmake and add the directory to PATH,
+by opening the file ".bashrc" in $HOME and adding the line:
 ```
-alias zmake="/opt/zmake/zmake"
+export PATH=/$HOME/zmake:$PATH
+```
+This is then run every time you start the computer. To update without restarting, run:
+```
+source .bashrc
+```
+Or if you don't wanna add a PATH variable you can create the following alias:
+```
+alias zmake="/$HOME/zmake/zmake"
 ```
 Then build it with gcc:
 ```
@@ -177,10 +184,7 @@ and the flags (but not the optimization) from your initial build profile will be
 If you have a "defaultinclude.hpp" in your current working directory when compiling a
 zmake project, then that file is used instead of the one in /global.
 
-If you don't want to create a new git project, you can use zmake gl projname (think gitless).
-
-Since I haven't implemented a way of including .z/.zpp code in a .cpp project,
-all functions are therefore automatically marked as static.
+If you don't want to create a new git project, you can use zmake gl projname (gl = gitless).
 
 You can also compile using simply "zmake file.z" or "zmake file.z -flag name".
 
@@ -192,4 +196,4 @@ Compiler flags:
 
 Clang-cl specific improvements (also applies for MSVC, but support for that compiler is limited overall):
 -fexceptions -> -EHsc
--O0          -> -Od     // It recognizes -Ofast as -O2 by default, but not -O0.
+-O0          -> -Od     // Clang-cl recognizes -Ofast as -O2 by default, but not -O0.
