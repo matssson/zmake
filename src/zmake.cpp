@@ -36,8 +36,8 @@ std::string(R"([build]
 version = "c++17"
 autoflags = "-Wall -Wextra -Wpedantic"
 )") +
-"include = \"" + ZMAKE_ROOT + FOLDER_NOTATION + "global" + FOLDER_NOTATION + "include (-w) include ()\"\n" +
-"libraries = \"" + ZMAKE_ROOT + FOLDER_NOTATION + "global" + FOLDER_NOTATION + "lib () lib ()\"\n" +
+"include = \"include () $ZMAKE_ROOT" + FOLDER_NOTATION + "global" + FOLDER_NOTATION + "include (-w)\"\n" +
+"libraries = \"lib () $ZMAKE_ROOT" + FOLDER_NOTATION + "global" + FOLDER_NOTATION + "lib ()\"\n" +
 #if defined(_WIN32) || defined(__APPLE__)
 R"(
 [profile.dev]
@@ -335,7 +335,7 @@ static inline bool is_file_include(const std::string& str) {
     return false;
 }
 
-//static inline void to_unix_folder_notation(std::string& str) { for (char& c: str) if (c == '\\') c = '/'; }
+static inline void change_folder_notation(std::string& str) { for (char& c: str) if (c == '\\' || c == '/') c = FOLDER_NOTATION.at(0); }
 
 static inline bool str_is_in_vec(const std::string& str, const std::vector<std::string>& vec) {
     for (const std::string& s: vec) if (str.compare(s) == 0) return true;
@@ -373,6 +373,7 @@ static inline bool str_is_in_vec(const std::string& str, const std::vector<std::
     Since everything is in the same compilation unit, we might want to automatically set everything to static.
 
     TODO:
+    Add command "zmake reset local/global config/include/zmake.cfg/defaultinclude.hpp"
     Passing "-o", "-c", "-S", "-E" and -save-temps to clang-cl
     save-temps -> save-temps=obj
     Clean up the ugly code.
@@ -933,6 +934,8 @@ R"(
                         std::string incmd = "";
                         while (std::regex_match(inc, matches, reg_lib_inc)) {
                             in = trimz(std::string(matches[1]));
+                            in = std::regex_replace(in, std::regex("\\$ZMAKE_ROOT"), ZMAKE_ROOT);
+                            change_folder_notation(in);
                             incmd = trimz(std::string(matches[2]));
                             if (!std::filesystem::exists(in)) {
                                 printz("- Include path \"" + in + "\" in config doesn't exist, aborting.\n");
@@ -948,6 +951,8 @@ R"(
                         std::string incmd = "";
                         while (std::regex_match(inc, matches, reg_lib_inc)) {
                             in = trimz(std::string(matches[1]));
+                            in = std::regex_replace(in, std::regex("\\$ZMAKE_ROOT"), ZMAKE_ROOT);
+                            change_folder_notation(in);
                             incmd = trimz(std::string(matches[2]));
                             if (!std::filesystem::exists(in)) {
                                 printz("- Library path \"" + in + "\" in config doesn't exist, aborting.\n");
