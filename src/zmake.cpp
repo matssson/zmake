@@ -1389,8 +1389,9 @@ R"(
                 main_cpp += forward_functions.at(i) + "\n";
             }
             main_cpp += "//// Code";
-            for (unsigned int i = 1; i < forward_zcode.size(); i++) {
-                main_cpp += forward_zcode.at(i);
+            // Backwards like cpp includes, except for defaultinclude
+            for (int i = static_cast<int>(forward_zcode.size() - 1); i > 0; i--) {
+                main_cpp += forward_zcode.at(static_cast<unsigned int>(i));
             }
 
             // Add it to cppfiles (program_name looks like "boo" with quotations)
