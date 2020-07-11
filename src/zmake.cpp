@@ -1094,12 +1094,18 @@ R"(
                 }
                 else {
                     if (std::regex_match(read_line, matches, reg_string_start) && !in_comment) {
-                        in_string = true;
-                        continue;
+                        if (in_string) continue;
+                        else {
+                            in_string = true;
+                            goto mainfinder;
+                        }
                     }
                     if (std::regex_match(read_line, matches, reg_comment_start) && !in_string) {
-                        in_comment = true;
-                        continue;
+                        if (in_comment) continue;
+                        else {
+                            in_comment = true;
+                            goto mainfinder;
+                        }
                     }
                     // Get { on second line, put this after comment and strings
                     if (getline(qt, read_line_next)) {
@@ -1205,12 +1211,18 @@ R"(
                     }
                     else {
                         if (std::regex_match(read_line, matches, reg_string_start) && !in_comment) {
-                            in_string = true;
-                            continue;
+                            if (in_string) continue;
+                            else {
+                                in_string = true;
+                                goto forwarddeclarer;
+                            }
                         }
                         if (std::regex_match(read_line, matches, reg_comment_start) && !in_string) {
-                            in_comment = true;
-                            continue;
+                            if (in_comment) continue;
+                            else {
+                                in_comment = true;
+                                goto forwarddeclarer;
+                            }
                         }
                         // Get { on second line, put this after comment and strings
                         if (getline(qt, read_line_next)) {
