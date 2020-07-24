@@ -2,7 +2,9 @@
 //#include <iostreams>
 #include <cstdio>
 //#include "cstdio"
+#include "global.hpp"
 #include "second.zpp"
+
 
 struct Book {
     int pages;
@@ -19,6 +21,10 @@ union Card {
 };
 
 void testfcn() {
+    return;
+}
+
+void testfcn2() {
     return;
 }
 

@@ -2,3 +2,5 @@
 *
 # Except this file
 !.gitignore
+# And global.hpp
+!global.hpp
