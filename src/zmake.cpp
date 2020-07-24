@@ -1365,6 +1365,7 @@ R"(
         auto b = std::chrono::steady_clock::now();
         system(compilation_string.c_str());
         auto c = std::chrono::steady_clock::now();
+        auto filetime_est = std::time(nullptr);
 
         std::chrono::duration<double, std::milli> fp_zmake = b - a;
         std::chrono::duration<double, std::milli> fp_compiler = c - b;
@@ -1375,9 +1376,21 @@ R"(
 
         // Open the program
         if (!use_no_run) {
-            print("- Opening ", program_name, ":\n\n");
-            system(target_name.c_str());
-            return EXIT_SUCCESS;
+            for (const auto& p: fs::recursive_directory_iterator("target")) {
+                if (fs::is_directory(p.path())) continue;
+                if (!streq(p.path().extension().u8string(), "", ".exe")) continue;
+                if (!streq(program_name, "\"" + p.path().stem().u8string() + "\"")) continue;
+
+                auto filetime = file_to_t(p.path().u8string());
+
+                if (abs(filetime - filetime_est) > 1) continue;
+
+                print("- Opening ", program_name, ":\n");
+                system(target_name.c_str());
+                return EXIT_SUCCESS;
+            }
+
+            return EXIT_FAILURE;
         }
         else return EXIT_SUCCESS;
     }
