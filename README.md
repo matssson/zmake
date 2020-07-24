@@ -4,16 +4,11 @@ meant to be as convenient and simple as possible.
 
 If you use the custom file extension .zpp (or .z) you also get things
 to improve the quality of life when coding in C++, like the removal of headers,
-and automatically adding things into one file for fast compilation, with forward declarations
-so you don't have to worry about the order of functions or includes.
+and automatically adding things into one file for fast compilation (unity builds),
+with forward declarations so you don't have to worry about the order of functions or includes.
+All of this is customizable and it works seamlessly with other C/C++ code and headers.
 
-It achieves this by making everything global in scope,
-importing macros and functions, and using things from the std namespace -
-but all of this is customizable and it works seamlessly with other C/C++ code and headers.
-
-If you want to change what zmake includes by default,
-just edit the autoinclude.hpp header in /global. You can also change the
-default config this way by changing autoconfig.cfg.
+You can also change the default config by changing defaultconfig.cfg in /global.
 
 # How to Build
 Make a new project with "zmake new project_name".
@@ -46,73 +41,6 @@ To include another file, just type:
 ```cpp
 #include "otherfile.zpp"
 ```
-Note that \<algorithm\>, \<cstdlib\>, \<cstdio\>, \<ctime\>,
-\<iostream\>, \<string\> and \<random\> are provided by default.
-(Libraries used by the default functions, cstdlib is used in a #define).
-
-The following are in the global namespace:
-string, vector.
-
-### Syntactic Sugar
-New Command             | Old Command
------------------------ | -----------------------
-alloc(num, type)        | (type*) malloc(sizeof(type) * num)
-arrlen(array)           | sizeof(array) / sizeof(array[0])
-putline(scanner, line)  | scanner << line << "\\n"
-
-### Simplified Types
-u8  = unsigned char
-
-u16 = unsigned short
-
-u32 = unsigned long
-
-u64 = unsigned long long
-
-s8  = char
-
-s16 = short
-
-s32 = long
-
-s64 = long long
-
-f32 = float
-
-f64 = double
-
-### Built in Functions
-A built in print function that works for any type. It also adds a flushes
-the output stream automatically, if you print a lot and don't want to flush
-you should use std::cout;
-```cpp
-print("hello ", 5, " ", variable, " world!\\n");
-```
-There's also printl() that does the same as the above, but also
-adds spaces between agruments and a newline at the end (like the print in Python 3).
-```cpp
-printl("hello", 5, variable, "world!");
-```
-
-A built in rng function that generates random numbers with much better
-statistical properties than C's rand() ever could.
-Note that it works on multiple threads due to being thread_local.
-- rng(int a, int b) returns a random int in the range [a, b],
-- rng() returns a random float in the range [0, 1).
-
-```cpp
-streq(str, "test 1", "test 2", test_str_etc);
-```
-Which checks if a string/c_string is equal to any of the other parameters.
-```cpp
-string timestr(time_t time, char* format);
-```
-Which turns a date into a string with the current time and Y-M-D H:M:S as standard.
-
-A function trim() that trims a string at both ends from whitespace and returns it.
-
-A function syscall() that takes a system() command,
-executes it and returns the output as a string.
 
 # Installing zmake
 ### Windows
@@ -179,9 +107,6 @@ zmake flags work with hyphens or slashes (-dev = /dev).
 
 If you change the compiler when running zmake, the resulting file will be named "\_custom",
 and the flags (but not the optimization) from your initial build profile will be ignored.
-
-If you have a "defaultinclude.hpp" in your current working directory when compiling a
-zmake project, then that file is used instead of the one in /global.
 
 If you don't want to create a new git project, you can use zmake gl projname (gl = gitless).
 
