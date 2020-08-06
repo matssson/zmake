@@ -2,6 +2,9 @@
 A build system for C/C++ inspired by Rust's cargo,
 meant to be as convenient and simple as possible.
 
+By default zmake uses unity builds to speed up compilation time.
+This can be turned off by typing the flag "-nounity".
+
 If you use the custom file extension .zpp (or .z) you also get things
 to improve the quality of life when coding in C++, like the removal of headers,
 and automatically adding things into one file for fast compilation (unity builds),
@@ -28,10 +31,10 @@ to compile with them, or the following built in commands:
 "-nocmd" (hide compiler command),
 "-notime" (hide compilation time),
 "-nobuild" (only running),
+"-nounity" (turn off unity builds),
 "-norun" (only building),
 "-run" (run after building),
 or "-gcc/-clang/-clang++" to change compiler.
-On Windows, clang (or clang-cl) compiles with clang-cl, unlike clang++.
 
 # Features
 No headers, so you don't have to worry about function prototypes

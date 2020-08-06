@@ -14,7 +14,7 @@
 using std::string;
 namespace fs = std::filesystem;
 
-static const string ZMAKE_VERSION = "ZMAKE VERSION 0.3.2";
+static const string ZMAKE_VERSION = "ZMAKE VERSION 0.4.0";
 
 // OS-SPECIFICS
 #ifdef _WIN32
@@ -145,11 +145,15 @@ enum {
 
 // * * * * * * * * * * FUNCTIONS * * * * * * * * * *
 template<typename... Args>
-static inline void print(Args&&... args) { (std::cout << ... << std::forward<Args>(args)) << std::flush; }
+static inline void print(Args&&... args) {
+    (std::cout << ... << std::forward<Args>(args)) << std::flush;
+}
 
 // If string is equal to ANY of the others
 template <typename... Args>
-static inline bool streq(const string& str, Args&&... args) { return ((str.compare(std::forward<Args>(args)) == 0) || ...); }
+static inline bool streq(const string& str, Args&&... args) {
+    return ((str.compare(std::forward<Args>(args)) == 0) || ...);
+}
 
 // Removes whitespace from both ends
 static inline string trim(string str) {
@@ -238,17 +242,20 @@ static inline std::time_t file_to_t(const string& path) {
 
 // Uses ends_with
 static inline bool is_file_include(const string& str) {
-    if (str.substr(0, 1).compare("-") == 0)     return false;
-    if (ends_with(str, string(".*")))      return true;
-    if (ends_with(str, string(".c")))      return true;
-    if (ends_with(str, string(".cc")))     return true;
-    if (ends_with(str, string(".cpp")))    return true;
-    if (ends_with(str, string(".z")))      return true;
-    if (ends_with(str, string(".zpp")))    return true;
+    if (str.substr(0, 1).compare("-") == 0) return false;
+    if (ends_with(str, string(".*")))   return true;
+    if (ends_with(str, string(".c")))   return true;
+    if (ends_with(str, string(".cc")))  return true;
+    if (ends_with(str, string(".cpp"))) return true;
+    if (ends_with(str, string(".c++"))) return true;
+    if (ends_with(str, string(".zpp"))) return true;
+    if (ends_with(str, string(".z")))   return true;
     return false;
 }
 
-static inline void change_folder_notation(string& str) { for (char& c: str) if (c == '\\' || c == '/') c = FOLDER_NOTATION.at(0); }
+static inline void change_folder_notation(string& str) {
+    for (char& c: str) if (c == '\\' || c == '/') c = FOLDER_NOTATION.at(0);
+}
 
 static inline bool str_is_in_vec(const string& str, const std::vector<string>& vec) {
     for (const string& s: vec) if (str.compare(s) == 0) return true;
@@ -322,6 +329,7 @@ int main(int argc, char* argv[]) {
 
     bool use_no_run = false;            // Otherwise run it, NOTE: use_no_build is STATE_OPEN
     bool use_no_time = false;           // Otherwise print compilation time
+    bool use_no_unity = false;          // Otherwise use unity builds
     bool use_no_cmd = false;            // Otherwise hide the cmd
     bool use_only_cpp = false;          // Otherwise add zpp features
     bool use_gitless = false;           // Don't create .git and .gitignore
@@ -391,8 +399,8 @@ int main(int argc, char* argv[]) {
             }
         }
         else {
-            if (streq(commands.at(0), "open")) state = STATE_OPEN;
-            if (streq(commands.at(0), "run")) build_profile = "dev";
+            if (streq(commands.at(0), "open"))  state = STATE_OPEN;
+            if (streq(commands.at(0), "run"))   build_profile = "dev";
             if (streq(commands.at(0), "build")) build_profile = "release";
             if (streq(commands.at(0), "debug")) build_profile = "debug";
             if (streq(commands.at(0), "build", "debug")) use_no_run = true;
@@ -457,7 +465,7 @@ int main(int argc, char* argv[]) {
         string firstarg = commands.at(0);
         transform(firstarg.begin(), firstarg.end(), firstarg.begin(), [](unsigned char c){ return tolower(c); });
         if (firstarg.compare(commands.at(0)) != 0)  print("- Note: zmake is case-sensitive, try using lowercase only!\n");
-        else if (streq(firstarg, "clear"))         print("- Note: Did you mean \"clean\"?\n");
+        else if (streq(firstarg, "clear"))          print("- Note: Did you mean \"clean\"?\n");
 
         return EXIT_FAILURE;
     }
@@ -493,10 +501,10 @@ R"(
 - "-nocmd" (hide compiler command),
 - "-notime" (hide compilation time),
 - "-nobuild" (only running),
+- "-nounity" (turn off unity builds),
 - "-norun" (only building),
 - "-run" (run after building),
 - or "-gcc/-clang/-clang++" to change compiler.
-- On Windows, clang (or clang-cl) compiles with clang-cl, unlike clang++.
 )");
         return EXIT_SUCCESS;
     }
@@ -581,7 +589,7 @@ R"(
             mail = trim(syscall("git config user.email"));
         }
         // Create main.zpp
-        pt.open("src/main.zpp", std::ios::trunc);
+        pt.open("src/main.cpp", std::ios::trunc);
         pt << DEFAULT_PROGRAM;
         pt.close();
         // Create zmake.cfg
@@ -724,6 +732,11 @@ R"(
             }
             else if (streq(commands.at(i), "-notime", "/notime")) {
                 use_no_time = true;
+                commands.erase(commands.begin() + i);
+                i--;
+            }
+            else if (streq(commands.at(i), "-nounity", "/nounity")) {
+                use_no_unity = true;
                 commands.erase(commands.begin() + i);
                 i--;
             }
@@ -917,19 +930,9 @@ R"(
         if (!use_build_files) {
             for (const auto& p: fs::recursive_directory_iterator("src")) {
                 if (fs::is_directory(p.path())) continue;
-                in = p.path().relative_path().parent_path().u8string() + FOLDER_NOTATION;
-                if (streq(p.path().extension().u8string(), ".c")) {
-                    // No duplicates
-                    if (str_is_in_vec(in + "*.c", cppfiles)) continue;
-                    cppfiles.emplace_back(in + "*.c");
-                }
-                else if (streq(p.path().extension().u8string(), ".cpp")) {
-                    if (str_is_in_vec(in + "*.cpp", cppfiles)) continue;
-                    cppfiles.emplace_back(in + "*.cpp");
-                }
-                else if (streq(p.path().extension().u8string(), ".cc")) {
-                    if (str_is_in_vec(in + "*.cc", cppfiles)) continue;
-                    cppfiles.emplace_back(in + "*.cc");
+                //in = p.path().relative_path().parent_path().u8string() + FOLDER_NOTATION;
+                if (streq(p.path().extension().u8string(), ".c", ".cpp", ".cc", ".c++")) {
+                    cppfiles.emplace_back(absolute(p.path()).u8string());
                 }
                 else if (streq(p.path().extension().u8string(), ".z", ".zpp")) {
                     if (streq(p.path().stem().u8string(), "main")) zfiles_inclist.insert(zfiles_inclist.begin(), p.path());
@@ -940,7 +943,7 @@ R"(
         else {
             // .c and .cpp are left for the compiler
             for (unsigned int i = 0; i < build_files.size(); i++) {
-                if (ends_with(build_files.at(i), ".c") || ends_with(build_files.at(i), ".cpp") || ends_with(build_files.at(i), ".cc")) {
+                if (ends_with(build_files.at(i), ".c") || ends_with(build_files.at(i), ".cpp") || ends_with(build_files.at(i), ".cc") || ends_with(build_files.at(i), ".c++")) {
                     cppfiles.emplace_back(build_files.at(i));
                 }
                 else if (ends_with(build_files.at(i), "*.z") || ends_with(build_files.at(i), "*.zpp")) {
@@ -1055,260 +1058,268 @@ R"(
                 zfiles_inclist.emplace_back(p.path());
             }
         }
-        if (!use_only_cpp) {
-            /* Put the .zpp files into a cpp file */
-            zfiles.emplace_back(zfiles_inclist.at(0));  // main
 
-            // 2D vector to store includes along with which files included them to show in *_zmake.cpp
-            std::vector<std::vector<string>> include_list;
-            include_list.reserve(8);
-            const std::regex reg_include("^#include (<(.*?)>|\"(.*)\")(.*)");
+        /* Put the .zpp files into a cpp file */
+        if (!use_only_cpp) zfiles.emplace_back(zfiles_inclist.at(0));  // main
 
-            // Forward declarations (reg functions varför funkar du inte)
-            const std::regex reg_structs("^(struct|class|union) (\\S+)\\s*\\{(.*)");
-            const std::regex reg_functions("^((\\S+\\s+)+?)(\\S+)\\((.*)\\)\\s*\\{(.*)"); //[1] type, [2] fcn_name, [3] args.
-            const std::regex reg_template("^template(\\s*)<(.*?)>(.*)");
-            const std::regex reg_args("(.*?)=(.*?),(.*)");
-            const std::regex reg_args_end("(.*?)=(.*)");
-            std::vector<string> forward_structs;
-            std::vector<string> forward_functions;
-            forward_structs.reserve(8);
-            forward_functions.reserve(64);
-            string template_fcn = "";
+        // 2D vector to store includes along with which files included them to show in *_zmake.cpp
+        std::vector<std::vector<string>> include_list;
+        include_list.reserve(8);
+        const std::regex reg_include("^#include (<(.*?)>|\"(.*)\")(.*)");
 
-            bool added_structs = false;
-            bool added_functions = false;
-            string add_structs = "";
-            string add_functions = "";
+        // Forward declarations (reg functions varför funkar du inte)
+        const std::regex reg_structs("^(struct|class|union) (\\S+)\\s*\\{(.*)");
+        const std::regex reg_functions("^((\\S+\\s+)+?)(\\S+)\\((.*)\\)\\s*\\{(.*)"); //[1] type, [2] fcn_name, [3] args.
+        const std::regex reg_template("^template(\\s*)<(.*?)>(.*)");
+        const std::regex reg_args("(.*?)=(.*?),(.*)");
+        const std::regex reg_args_end("(.*?)=(.*)");
+        std::vector<string> forward_structs;
+        std::vector<string> forward_functions;
+        forward_structs.reserve(8);
+        forward_functions.reserve(64);
+        string template_fcn = "";
 
-            // Get includes, and structs, classes, unions and functions
-            // so we can forward declare them, in that order.
-            for (unsigned int i = 0; i < zfiles.size(); i++) {
-                qt.open(zfiles.at(i));
-                if (!qt.is_open()) {
-                    print("- Couldn't open file \"", zfiles.at(i), "\", aborting.\n");
-                    return EXIT_FAILURE;
+        bool added_structs = false;
+        bool added_functions = false;
+        string add_structs = "";
+        string add_functions = "";
+
+        // Get includes, and structs, classes, unions and functions
+        // so we can forward declare them, in that order.
+        for (unsigned int i = 0; i < zfiles.size(); i++) {
+            qt.open(zfiles.at(i));
+            if (!qt.is_open()) {
+                print("- Couldn't open file \"", zfiles.at(i), "\", aborting.\n");
+                return EXIT_FAILURE;
+            }
+            // Annotate where structs and functions come from, removed at end if not filled
+            added_structs = false;
+            added_functions = false;
+            add_structs = "// From " + zfiles.at(i).u8string() + "\n";
+            add_functions = "// From " + zfiles.at(i).u8string() + "\n";
+
+            while (getline(qt, read_line)) {
+                forwarddeclarer:
+                if (in_string) {
+                    if (std::regex_match(read_line, matches, reg_string_end)) {
+                        in_string = false;
+                        read_line = matches[2];
+                        goto forwarddeclarer;
+                    }
                 }
-                // Annotate where structs and functions come from, removed at end if not filled
-                added_structs = false;
-                added_functions = false;
-                add_structs = "// From " + zfiles.at(i).u8string() + "\n";
-                add_functions = "// From " + zfiles.at(i).u8string() + "\n";
+                else if (in_comment) {
+                    if (std::regex_match(read_line, matches, reg_comment_end)) {
+                        in_comment = false;
+                        read_line = matches[2];
+                        goto forwarddeclarer;
+                    }
+                }
+                else if (std::regex_match(read_line, matches, reg_comment_one_line)) {
+                    continue;
+                }
+                else {
+                    if (std::regex_match(read_line, matches, reg_string_start) && !in_comment) {
+                        if (in_string) continue;
+                        else {
+                            in_string = true;
+                            goto forwarddeclarer;
+                        }
+                    }
+                    if (std::regex_match(read_line, matches, reg_comment_start) && !in_string) {
+                        if (in_comment) continue;
+                        else {
+                            in_comment = true;
+                            goto forwarddeclarer;
+                        }
+                    }
+                    // Get { on second line, put this after comment and strings
+                    if (getline(qt, read_line_next)) {
+                        read_line_loop = true;
+                        if (std::regex_match(read_line_next, matches, reg_second_line_bracket)) {
+                            read_line = trim(read_line) + trim(read_line_next);
+                        }
+                    }
+                    if (std::regex_match(read_line, matches, reg_include)) {
+                        bool include_already_exists = false;
+                        string incfile = matches[1];
+                        string zpp_file_inc = incfile.substr(1, incfile.length() - 2);
+                        // Including a .zpp file
+                        if (ends_with(zpp_file_inc, ".zpp") || ends_with(zpp_file_inc, ".z")) {
+                            for (unsigned int j = 0; j < zfiles_inclist.size(); j++) {
+                                if (streq(zfiles_inclist.at(j).filename().u8string(), zpp_file_inc)) {
+                                    if (!str_is_in_vec(zfiles_inclist.at(j).u8string(), zfiles)) {
+                                        zfiles.emplace_back(zfiles_inclist.at(j));
+                                    }
+                                    incfile = "//#include \"" + zpp_file_inc + "\"";
+                                    goto inc_label;
+                                }
+                            }
+                            print("- Couldn't find file \"", zpp_file_inc, "\", aborting.\n");
+                            return EXIT_FAILURE;
+                        }
+                        else incfile = "#include " + incfile;
+                        inc_label:
+                        for (unsigned int j = 0; j < include_list.size(); j++) {
+                            if (streq(incfile, include_list.at(j).at(0))) {
+                                include_already_exists = true;
+                                include_list.at(j).emplace_back(zfiles.at(i).u8string());
+                                break;
+                            }
+                        }
+                        if (!include_already_exists) {
+                            include_list.emplace_back(std::vector<string> { incfile, zfiles.at(i).u8string() });
+                        }
+                    }
+                    else if (std::regex_match(read_line, matches, reg_structs)) {
+                        string temp_struct = matches[1];
+                        temp_struct += " ";
+                        temp_struct += matches[2];
+                        temp_struct += ";\n";
+                        add_structs += temp_struct;
+                        added_structs = true;
+                    }
+                    else if (std::regex_match(read_line, matches, reg_functions)) {
+                        if (streq("main", matches[3])) continue;
+                        string temp_fcn = template_fcn;
+                        temp_fcn += matches[1];
+                        temp_fcn += matches[3];
+                        temp_fcn += "(";
+                        string temp_args = matches[4];
+                        while (std::regex_match(temp_args, matches, reg_args)) {
+                            temp_args = trim(matches[1]);
+                            temp_args += ", ";
+                            temp_args += trim(matches[3]);
+                        }
+                        if (std::regex_match(temp_args, matches, reg_args_end)) {
+                            temp_args = trim(matches[1]);
+                        }
+                        temp_fcn += temp_args;
+                        temp_fcn += ");\n";
+                        add_functions += temp_fcn;
+                        added_functions = true;
+                    }
+                    else if (std::regex_match(read_line, matches, reg_template)) {
+                        template_fcn = "template <" + string(matches[2]) + ">\n";
+                    }
+                    else {
+                        template_fcn = "";
+                    }
+                    if (read_line_loop) {
+                        read_line = read_line_next;
+                        read_line_loop = false;
+                        goto forwarddeclarer;
+                    }
+                }
+            }
+            // If a file doesn't add any new structs/functions, remove it from *_zmake.cpp.
+            if (added_structs) forward_structs.emplace_back(add_structs);
+            if (added_functions) forward_functions.emplace_back(add_functions);
 
-                while (getline(qt, read_line)) {
-                    forwarddeclarer:
-                    if (in_string) {
-                        if (std::regex_match(read_line, matches, reg_string_end)) {
-                            in_string = false;
-                            read_line = matches[2];
-                            goto forwarddeclarer;
-                        }
+            qt.close();
+        }
+        in_string = false;
+        in_comment = false;
+        read_line_loop = false;
+        bool empty_start_lines = true;
+
+        // Add rest of code to *_zmake.cpp
+        std::vector<string> forward_zcode;
+        forward_zcode.reserve(16);
+        string zfile_code = "";
+
+        for (unsigned int i = 0; i < zfiles.size(); i++) {
+            qt.open(zfiles.at(i));
+            if (!qt.is_open()) {
+                print("- Couldn't open file \"", zfiles.at(i), "\", aborting.\n");
+                return EXIT_FAILURE;
+            }
+            zfile_code = string("\n// From ") + zfiles.at(i).u8string() + string("\n");
+            empty_start_lines = true;
+            // Just dont add includes
+            while (getline(qt, read_line)) {
+                if (in_string) {
+                    if (std::regex_match(read_line, matches, reg_string_end)) {
+                        in_string = false;
                     }
-                    else if (in_comment) {
-                        if (std::regex_match(read_line, matches, reg_comment_end)) {
-                            in_comment = false;
-                            read_line = matches[2];
-                            goto forwarddeclarer;
-                        }
+                }
+                else if (in_comment) {
+                    if (std::regex_match(read_line, matches, reg_comment_end)) {
+                        in_comment = false;
                     }
-                    else if (std::regex_match(read_line, matches, reg_comment_one_line)) {
+                }
+                else {
+                    if (std::regex_match(read_line, matches, reg_string_start) && !in_comment) {
+                        in_string = true;
+                    }
+                    else if (std::regex_match(read_line, matches, reg_comment_start) && !in_string) {
+                        in_comment = true;
+                    }
+                    else if (std::regex_match(read_line, matches, reg_include)) {
                         continue;
                     }
-                    else {
-                        if (std::regex_match(read_line, matches, reg_string_start) && !in_comment) {
-                            if (in_string) continue;
-                            else {
-                                in_string = true;
-                                goto forwarddeclarer;
-                            }
-                        }
-                        if (std::regex_match(read_line, matches, reg_comment_start) && !in_string) {
-                            if (in_comment) continue;
-                            else {
-                                in_comment = true;
-                                goto forwarddeclarer;
-                            }
-                        }
-                        // Get { on second line, put this after comment and strings
-                        if (getline(qt, read_line_next)) {
-                            read_line_loop = true;
-                            if (std::regex_match(read_line_next, matches, reg_second_line_bracket)) {
-                                read_line = trim(read_line) + trim(read_line_next);
-                            }
-                        }
-                        if (std::regex_match(read_line, matches, reg_include)) {
-                            bool include_already_exists = false;
-                            string incfile = matches[1];
-                            string zpp_file_inc = incfile.substr(1, incfile.length() - 2);
-                            // Including a .zpp file
-                            if (ends_with(zpp_file_inc, ".zpp") || ends_with(zpp_file_inc, ".z")) {
-                                for (unsigned int j = 0; j < zfiles_inclist.size(); j++) {
-                                    if (streq(zfiles_inclist.at(j).filename().u8string(), zpp_file_inc)) {
-                                        if (!str_is_in_vec(zfiles_inclist.at(j).u8string(), zfiles)) {
-                                            zfiles.emplace_back(zfiles_inclist.at(j));
-                                        }
-                                        incfile = "//#include \"" + zpp_file_inc + "\"";
-                                        goto inc_label;
-                                    }
-                                }
-                                print("- Couldn't find file \"", zpp_file_inc, "\", aborting.\n");
-                                return EXIT_FAILURE;
-                            }
-                            else incfile = "#include " + incfile;
-                            inc_label:
-                            for (unsigned int j = 0; j < include_list.size(); j++) {
-                                if (streq(incfile, include_list.at(j).at(0))) {
-                                    include_already_exists = true;
-                                    include_list.at(j).emplace_back(zfiles.at(i).u8string());
-                                    break;
-                                }
-                            }
-                            if (!include_already_exists) {
-                                include_list.emplace_back(std::vector<string> { incfile, zfiles.at(i).u8string() });
-                            }
-                        }
-                        else if (std::regex_match(read_line, matches, reg_structs)) {
-                            string temp_struct = matches[1];
-                            temp_struct += " ";
-                            temp_struct += matches[2];
-                            temp_struct += ";\n";
-                            add_structs += temp_struct;
-                            added_structs = true;
-                        }
-                        else if (std::regex_match(read_line, matches, reg_functions)) {
-                            if (streq("main", matches[3])) continue;
-                            string temp_fcn = template_fcn;
-                            temp_fcn += matches[1];
-                            temp_fcn += matches[3];
-                            temp_fcn += "(";
-                            string temp_args = matches[4];
-                            while (std::regex_match(temp_args, matches, reg_args)) {
-                                temp_args = trim(matches[1]);
-                                temp_args += ", ";
-                                temp_args += trim(matches[3]);
-                            }
-                            if (std::regex_match(temp_args, matches, reg_args_end)) {
-                                temp_args = trim(matches[1]);
-                            }
-                            temp_fcn += temp_args;
-                            temp_fcn += ");\n";
-                            add_functions += temp_fcn;
-                            added_functions = true;
-                        }
-                        else if (std::regex_match(read_line, matches, reg_template)) {
-                            template_fcn = "template <" + string(matches[2]) + ">\n";
-                        }
-                        else {
-                            template_fcn = "";
-                        }
-                        if (read_line_loop) {
-                            read_line = read_line_next;
-                            read_line_loop = false;
-                            goto forwarddeclarer;
-                        }
-                    }
                 }
-                // If a file doesn't add any new structs/functions, remove it from *_zmake.cpp.
-                if (added_structs) forward_structs.emplace_back(add_structs);
-                if (added_functions) forward_functions.emplace_back(add_functions);
-
-                qt.close();
+                if (empty_start_lines && streq(read_line, "")) continue;
+                else empty_start_lines = false;
+                zfile_code += read_line;
+                zfile_code += "\n";
             }
-            in_string = false;
-            in_comment = false;
-            read_line_loop = false;
-            bool empty_start_lines = true;
+            forward_zcode.emplace_back(zfile_code);
+            qt.close();
+        }
 
-            // Add rest of code to *_zmake.cpp
-            std::vector<string> forward_zcode;
-            forward_zcode.reserve(16);
-            string zfile_code = "";
+        // Fix main.cpp
+        string main_cpp = "//// This file was automatically generated by\n//// "
+                             + ZMAKE_VERSION + ", at " + timestr() + ".\n";
+        if (include_list.size() != 0) main_cpp += "\n//// Includes\n";
+        for (unsigned int i = 0; i < include_list.size(); i++) {
+            main_cpp += include_list.at(i).at(0);
+            // Add soft tabs
+            int tabsize = static_cast<int>(include_list.at(i).at(0).length());
+            tabsize = 4 - (tabsize % 4);
+            for (int j = 0; j < tabsize; j++) main_cpp += " ";
 
-            for (unsigned int i = 0; i < zfiles.size(); i++) {
-                qt.open(zfiles.at(i));
-                if (!qt.is_open()) {
-                    print("- Couldn't open file \"", zfiles.at(i), "\", aborting.\n");
-                    return EXIT_FAILURE;
-                }
-                zfile_code = string("\n// From ") + zfiles.at(i).u8string() + string("\n");
-                empty_start_lines = true;
-                // Just dont add includes
-                while (getline(qt, read_line)) {
-                    if (in_string) {
-                        if (std::regex_match(read_line, matches, reg_string_end)) {
-                            in_string = false;
-                        }
-                    }
-                    else if (in_comment) {
-                        if (std::regex_match(read_line, matches, reg_comment_end)) {
-                            in_comment = false;
-                        }
-                    }
-                    else {
-                        if (std::regex_match(read_line, matches, reg_string_start) && !in_comment) {
-                            in_string = true;
-                        }
-                        else if (std::regex_match(read_line, matches, reg_comment_start) && !in_string) {
-                            in_comment = true;
-                        }
-                        else if (std::regex_match(read_line, matches, reg_include)) {
-                            continue;
-                        }
-                    }
-                    if (empty_start_lines && streq(read_line, "")) continue;
-                    else empty_start_lines = false;
-                    zfile_code += read_line;
-                    zfile_code += "\n";
-                }
-                forward_zcode.emplace_back(zfile_code);
-                qt.close();
+            main_cpp += "// From ";
+            for (unsigned int j = 1; j < include_list.at(i).size(); j++) {
+                if (j > 1) main_cpp += ", ";
+                main_cpp += include_list.at(i).at(j);
             }
+            main_cpp += "\n";
+        }
 
-            // Fix main.cpp
-            string main_cpp = "//// This file was automatically generated by\n//// "
-                                 + ZMAKE_VERSION + ", at " + timestr() + ".\n\n"
-                                 + "//// Includes\n";
-            for (unsigned int i = 0; i < include_list.size(); i++) {
-                main_cpp += include_list.at(i).at(0);
-                // Add soft tabs
-                int tabsize = static_cast<int>(include_list.at(i).at(0).length());
-                tabsize = 4 - (tabsize % 4);
-                for (int j = 0; j < tabsize; j++) main_cpp += " ";
-
-                main_cpp += "// From ";
-                for (unsigned int j = 1; j < include_list.at(i).size(); j++) {
-                    if (j > 1) main_cpp += ", ";
-                    main_cpp += include_list.at(i).at(j);
-                }
-                main_cpp += "\n";
+        // Unity includes
+        if (!use_no_unity) {
+            if (cppfiles.size() != 0) main_cpp += "\n//// Unity includes\n";
+            for (unsigned int i = 0; i < cppfiles.size(); i++) {
+                main_cpp += "#include \"" + cppfiles.at(i) + "\"\n";
             }
+        }
 
-
-
-
-            // All backwards like cpp includes
-            main_cpp += "\n//// Structs, classes and unions\n";
-            for (int i = static_cast<int>(forward_structs.size()) - 1; i >= 0; i--) {
-                main_cpp += forward_structs.at(static_cast<unsigned int>(i)) + "\n";
-            }
-            main_cpp += "//// Functions\n";
-            for (int i = static_cast<int>(forward_functions.size()) - 1; i >= 0; i--) {
-                main_cpp += forward_functions.at(static_cast<unsigned int>(i)) + "\n";
-            }
-            main_cpp += "//// Code";
-            for (int i = static_cast<int>(forward_zcode.size()) - 1; i >= 0; i--) {
-                main_cpp += forward_zcode.at(static_cast<unsigned int>(i));
-            }
-            // Add it to cppfiles (program_name looks like "boo" with quotations)
-            string open_filename = program_name.substr(1, program_name.length() - 2) + "_zmake.cpp";
-            if (!use_build_files) open_filename = "target" + FOLDER_NOTATION + open_filename;
+        // All backwards like cpp includes
+        if (forward_structs.size() != 0) main_cpp += "\n//// Structs, classes and unions\n";
+        for (int i = static_cast<int>(forward_structs.size()) - 1; i >= 0; i--) {
+            main_cpp += forward_structs.at(static_cast<unsigned int>(i));
+            if (i - 1 >= 0) main_cpp += "\n";
+        }
+        if (forward_functions.size() != 0) main_cpp += "\n//// Functions\n";
+        for (int i = static_cast<int>(forward_functions.size()) - 1; i >= 0; i--) {
+            main_cpp += forward_functions.at(static_cast<unsigned int>(i));
+            if (i - 1 >= 0) main_cpp += "\n";
+        }
+        if (forward_zcode.size() != 0) main_cpp += "\n//// Code";
+        for (int i = static_cast<int>(forward_zcode.size()) - 1; i >= 0; i--) {
+            main_cpp += forward_zcode.at(static_cast<unsigned int>(i));
+        }
+        // Add it to cppfiles (program_name looks like "boo" with quotations)
+        string open_filename = program_name.substr(1, program_name.length() - 2) + "_zmake.cpp";
+        if (!use_build_files) open_filename = "target" + FOLDER_NOTATION + open_filename;
+        if (!use_no_unity || !use_only_cpp) {
             pt.open(open_filename, std::ios::trunc);
             pt << main_cpp;
             pt.close();
             cppfiles.insert(cppfiles.begin(), open_filename);
         }
 
-        // Fix imports - cppfiles, imports and libraries need to be in unix form
+        // Fix imports - cppfiles, imports and libraries
         // Because git bash doesn't understand the compile commands
         string libpath_cl = "";
         for (unsigned int i = 0; i < cppfiles.size(); i++) {
@@ -1332,9 +1343,12 @@ R"(
             commands.insert(commands.begin(), temp_str);
         }
         // Put them into the commands
-        for (unsigned int i = 0; i < cppfiles.size(); i++) {
-            commands.insert(commands.begin(), cppfiles.at(i));
+        if (use_no_unity) {
+            for (unsigned int i = 0; i < cppfiles.size(); i++) {
+                commands.insert(commands.begin(), cppfiles.at(i));
+            }
         }
+        else commands.insert(commands.begin(), open_filename);
 
         // Fix cversion and compiler flags
         if (ends_with(compiler, "cl")) cversion = "-std:" + cversion;
