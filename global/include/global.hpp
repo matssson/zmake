@@ -40,7 +40,9 @@ typedef long long s64;
 #pragma GCC diagnostic ignored "-Wunused-template"
 #endif
 template<typename... Args>
-static inline void print(Args&&... args) { (std::cout << ... << std::forward<Args>(args)) << std::flush; }
+static inline void print(Args&&... args) {
+    (std::cout << ... << std::forward<Args>(args)) << std::flush;
+}
 
 template <typename Arg, typename... Args>
 static inline void printl(Arg&& arg, Args&&... args) {

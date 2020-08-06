@@ -41,7 +41,19 @@ autoflags = "-Wall -Wextra -Wpedantic"
 )") +
 "include = \"include () $ZMAKE_ROOT" + FOLDER_NOTATION + "global" + FOLDER_NOTATION + "include (-w)\"\n" +
 "libraries = \"lib () $ZMAKE_ROOT" + FOLDER_NOTATION + "global" + FOLDER_NOTATION + "lib ()\"\n" +
-#if defined(_WIN32) || defined(__APPLE__)
+#ifdef _WIN32
+R"(
+[profile.dev]
+compiler = "clang-cl"
+optimization = ""
+flags = "-Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic"
+
+[profile.release]
+compiler = "clang-cl"
+optimization = "-Ofast"
+flags = "-Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic -march=native"
+)" +
+#elif __APPLE__
 R"(
 [profile.dev]
 compiler = "clang"
@@ -56,12 +68,12 @@ flags = "-Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic -march=native
 #else
 R"(
 [profile.dev]
-compiler = "gcc"
+compiler = "g++"
 optimization = ""
 flags = ""
 
 [profile.release]
-compiler = "gcc"
+compiler = "g++"
 optimization = "-Ofast"
 flags = "-march=native"
 )" +
@@ -76,17 +88,38 @@ flags = "-g -Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic"
 #else
 R"(
 [profile.debug]
-compiler = "gcc"
+compiler = "g++"
 optimization = "-Og"
 flags = "-g"
 )";
 #endif
 
 static const string DEFAULT_PROGRAM =
-R"(
+R"(#include <iostream>
+#include <random>
+
+template<typename... Args>
+static inline void print(Args&&... args) {
+    (std::cout << ... << std::forward<Args>(args)) << std::flush;
+}
+
+template <typename Arg, typename... Args>
+static inline void printl(Arg&& arg, Args&&... args) {
+    std::cout << std::forward<Arg>(arg);
+    ((std::cout << ' ' << std::forward<Args>(args)), ...);
+    std::cout << std::endl;
+}
+
+static int rng(int lower_bound, int upper_bound) {
+    thread_local std::random_device rd;
+    thread_local std::mt19937 mt(rd());
+    std::uniform_int_distribution<int> dist(lower_bound, upper_bound);
+    return dist(mt);
+}
+
 int main() {
     print("Hello World!\n");
-    print("Your lucky number is: ", rng(1, 100), "\n");
+    printl("Your lucky number is:", rng(1, 100));
 }
 )";
 
@@ -651,18 +684,16 @@ R"(
                 else {
                     if (streq(commands.at(i).substr(0, 1), "-", "/")) commands.at(i) = commands.at(i).substr(1);
                     has_compiler_flag = true;
-                    if (streq(commands.at(i), "gcc")) compiler = "g++";
-                    else if (streq(commands.at(i), "clang") && ON_WINDOWS) compiler = "clang-cl";
-                    else if (streq(commands.at(i), "msvc")) compiler = "cl";
+                    if (streq(commands.at(i), "msvc")) compiler = "cl";
                     else compiler = commands.at(i);
                     commands.erase(commands.begin() + i);
                     i--;
                 }
             }
-            else if (streq(commands.at(i).substr(0, 8), "-std=c++", "/std:c++") ||
-                     streq(commands.at(i).substr(0, 4), "-c++", "/c++")) {
+            else if (streq(commands.at(i).substr(0, 6), "-std=c", "/std:c") ||
+                     streq(commands.at(i).substr(0, 2), "-c", "/c")) {
                 if (has_cversion_flag) {
-                    print("- Multiple C++ version arguments, aborting.\n");
+                    print("- Multiple version arguments, aborting.\n");
                     return EXIT_FAILURE;
                 }
                 else {
@@ -848,9 +879,7 @@ R"(
                         if (has_compiler_flag) continue;
                         compiler = matches[4];
                         if (streq(compiler.substr(0, 1), "-", "/")) compiler = compiler.substr(1);
-                        if (streq(compiler, "gcc")) compiler = "g++";
-                        else if (ON_WINDOWS && streq(compiler, "clang")) compiler = "clang-cl";
-                        else if (streq(compiler, "msvc")) compiler = "cl";
+                        if (streq(compiler, "msvc")) compiler = "cl";
                     }
                     else if (streq(current_flag, "optimization")) {
                         if (has_optimization_flag) continue;
@@ -1353,6 +1382,8 @@ R"(
         program_name = program_name.substr(0, program_name.length()-1) + "_" + build_profile + "\"";
         string target_name = program_name;
         if (!use_build_files) target_name = "\"target" + FOLDER_NOTATION + target_name.substr(1);
+
+        if (ON_WINDOWS && !ends_with(target_name, ".exe\"")) target_name = target_name.substr(0, target_name.length()-1) + ".exe\"";
 
         compilation_string += " " + target_name;
         if (!streq(libpath_cl, "")) compilation_string += " -link" + libpath_cl;
