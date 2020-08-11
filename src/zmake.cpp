@@ -14,7 +14,7 @@
 using std::string;
 namespace fs = std::filesystem;
 
-static const string ZMAKE_VERSION = "ZMAKE VERSION 0.4.0";
+static const string ZMAKE_VERSION = "ZMAKE VERSION 0.4.1";
 
 // OS-SPECIFICS
 #ifdef _WIN32
@@ -216,6 +216,7 @@ static inline bool is_file_include(const string& str) {
     if (ends_with(str, string(".cc")))  return true;
     if (ends_with(str, string(".cpp"))) return true;
     if (ends_with(str, string(".c++"))) return true;
+    if (ends_with(str, string(".cxx"))) return true;
     if (ends_with(str, string(".zpp"))) return true;
     if (ends_with(str, string(".z")))   return true;
     return false;
@@ -899,7 +900,7 @@ R"(
             for (const auto& p: fs::recursive_directory_iterator("src")) {
                 if (fs::is_directory(p.path())) continue;
                 //in = p.path().relative_path().parent_path().u8string() + FOLDER_NOTATION;
-                if (streq(p.path().extension().u8string(), ".c", ".cpp", ".cc", ".c++")) {
+                if (streq(p.path().extension().u8string(), ".c", ".cpp", ".cc", ".c++", ".cxx")) {
                     cppfiles.emplace_back(absolute(p.path()).u8string());
                 }
                 else if (streq(p.path().extension().u8string(), ".z", ".zpp")) {
@@ -911,7 +912,8 @@ R"(
         else {
             // .c and .cpp are left for the compiler
             for (unsigned int i = 0; i < build_files.size(); i++) {
-                if (ends_with(build_files.at(i), ".c") || ends_with(build_files.at(i), ".cpp") || ends_with(build_files.at(i), ".cc") || ends_with(build_files.at(i), ".c++")) {
+                if (ends_with(build_files.at(i), ".c") || ends_with(build_files.at(i), ".cpp") || ends_with(build_files.at(i), ".cc") ||
+                    ends_with(build_files.at(i), ".c++") || ends_with(build_files.at(i), ".cxx")) {
                     cppfiles.emplace_back(build_files.at(i));
                 }
                 else if (ends_with(build_files.at(i), "*.z") || ends_with(build_files.at(i), "*.zpp")) {
@@ -1005,6 +1007,9 @@ R"(
                 }
             }
             qt.close();
+            in_string = false;
+            in_comment = false;
+            read_line_loop = false;
             if (main_entry != -1) break;
         }
         if (main_entry == -1) {
@@ -1014,9 +1019,6 @@ R"(
                 return EXIT_FAILURE;
             }
         }
-        in_string = false;
-        in_comment = false;
-        read_line_loop = false;
 
         // Find more files in includes
         for (unsigned int i = 0; i < cfg_includes.size(); i++) {
@@ -1184,10 +1186,10 @@ R"(
             if (added_functions) forward_functions.emplace_back(add_functions);
 
             qt.close();
+            in_string = false;
+            in_comment = false;
+            read_line_loop = false;
         }
-        in_string = false;
-        in_comment = false;
-        read_line_loop = false;
         bool empty_start_lines = true;
 
         // Add rest of code to *_zmake.cpp
