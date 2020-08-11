@@ -20,17 +20,20 @@ static const string ZMAKE_VERSION = "ZMAKE VERSION 0.4.0";
 #ifdef _WIN32
 static const string ZMAKE_ROOT = "C:\\zmake";
 static const string FOLDER_NOTATION = "\\";
+static const string DEFAULT_COMPILER = "clang-cl";
 const bool ON_WINDOWS = true;
 
 #elif __linux__
 static const string ZMAKE_ROOT = fs::path(getenv("HOME")).u8string() + "/zmake";
-static const bool ON_WINDOWS = false;
 static const string FOLDER_NOTATION = "/";
+static const string DEFAULT_COMPILER = "g++";
+static const bool ON_WINDOWS = false;
 
 #else
 static const string ZMAKE_ROOT = "/usr/local/opt/zmake";
-static const bool ON_WINDOWS = false;
 static const string FOLDER_NOTATION = "/";
+static const string DEFAULT_COMPILER = "clang++";
+static const bool ON_WINDOWS = false;
 #endif
 
 // DEFAULTS (OS-DEPENDANT)
@@ -41,58 +44,23 @@ autoflags = "-Wall -Wextra -Wpedantic"
 )") +
 "include = \"include () $ZMAKE_ROOT" + FOLDER_NOTATION + "global" + FOLDER_NOTATION + "include (-w)\"\n" +
 "libraries = \"lib () $ZMAKE_ROOT" + FOLDER_NOTATION + "global" + FOLDER_NOTATION + "lib ()\"\n" +
-#ifdef _WIN32
 R"(
 [profile.dev]
-compiler = "clang-cl"
-optimization = ""
-flags = "-Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic"
-
-[profile.release]
-compiler = "clang-cl"
-optimization = "-Ofast"
-flags = "-Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic -march=native"
-)" +
-#elif __APPLE__
-R"(
-[profile.dev]
-compiler = "clang"
-optimization = ""
-flags = "-Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic"
-
-[profile.release]
-compiler = "clang"
-optimization = "-Ofast"
-flags = "-Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic -march=native"
-)" +
-#else
-R"(
-[profile.dev]
-compiler = "g++"
-optimization = ""
+compiler = ")" + DEFAULT_COMPILER + "\"\n" +
+R"(optimization = ""
 flags = ""
+#-Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-old-style-cast
 
 [profile.release]
-compiler = "g++"
-optimization = "-Ofast"
+compiler = ")" + DEFAULT_COMPILER + "\"\n" +
+R"(optimization = "-Ofast"
 flags = "-march=native"
-)" +
-#endif
-#ifdef __APPLE__
-R"(
+
 [profile.debug]
-compiler = "clang"
-optimization = "-Og"
-flags = "-g -Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic"
-)";
-#else
-R"(
-[profile.debug]
-compiler = "g++"
-optimization = "-Og"
+compiler = ")" + DEFAULT_COMPILER + "\"\n" +
+R"(optimization = ""
 flags = "-g"
 )";
-#endif
 
 static const string DEFAULT_PROGRAM =
 R"(#include <iostream>
