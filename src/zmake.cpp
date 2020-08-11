@@ -1264,21 +1264,24 @@ R"(
             }
         }
 
-        // All backwards like cpp includes
         if (forward_structs.size() != 0) main_cpp += "\n//// Structs, classes and unions\n";
-        for (int i = static_cast<int>(forward_structs.size()) - 1; i >= 0; i--) {
-            main_cpp += forward_structs.at(static_cast<unsigned int>(i));
-            if (i - 1 >= 0) main_cpp += "\n";
+        for (unsigned int i = 1; i < forward_structs.size(); i++) {
+            main_cpp += forward_structs.at(i);
+            main_cpp += "\n";
         }
+        main_cpp += forward_structs.at(0);
         if (forward_functions.size() != 0) main_cpp += "\n//// Functions\n";
-        for (int i = static_cast<int>(forward_functions.size()) - 1; i >= 0; i--) {
-            main_cpp += forward_functions.at(static_cast<unsigned int>(i));
-            if (i - 1 >= 0) main_cpp += "\n";
+        for (unsigned int i = 1; i < forward_functions.size(); i++) {
+            main_cpp += forward_functions.at(i);
+            main_cpp += "\n";
         }
+        main_cpp += forward_functions.at(0);
         if (forward_zcode.size() != 0) main_cpp += "\n//// Code";
-        for (int i = static_cast<int>(forward_zcode.size()) - 1; i >= 0; i--) {
-            main_cpp += forward_zcode.at(static_cast<unsigned int>(i));
+        for (unsigned int i = 1; i < forward_zcode.size(); i++) {
+            main_cpp += forward_zcode.at(i);
         }
+        main_cpp += forward_zcode.at(0);
+
         // Add it to cppfiles (program_name looks like "boo" with quotations)
         string open_filename = program_name.substr(1, program_name.length() - 2) + "_zmake.cpp";
         if (!use_build_files) open_filename = "target" + FOLDER_NOTATION + open_filename;
