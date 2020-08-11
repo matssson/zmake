@@ -21,7 +21,7 @@ static const string ZMAKE_VERSION = "ZMAKE VERSION 0.4.0";
 static const string ZMAKE_ROOT = "C:\\zmake";
 static const string FOLDER_NOTATION = "\\";
 static const string DEFAULT_COMPILER = "clang-cl";
-const bool ON_WINDOWS = true;
+static const bool ON_WINDOWS = true;
 
 #elif __linux__
 static const string ZMAKE_ROOT = fs::path(getenv("HOME")).u8string() + "/zmake";
