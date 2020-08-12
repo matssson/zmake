@@ -1235,6 +1235,8 @@ R"(
             }
             forward_zcode.emplace_back(zfile_code);
             qt.close();
+            in_string = false;
+            in_comment = false;
         }
 
         // Fix main.cpp
