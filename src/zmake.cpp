@@ -572,7 +572,7 @@ R"(
             print("- Couldn't open defaultconfig.cfg, aborting.\n");
             return EXIT_FAILURE;
         }
-        while(getline(qt, read_line)) {
+        while (getline(qt, read_line)) {
             pt << read_line;
             pt << "\n";
         }
@@ -759,7 +759,7 @@ R"(
                 print("- Couldn't open defaultconfig.cfg, aborting.\n");
                 return EXIT_FAILURE;
             }
-            while(getline(qt, read_line)) {
+            while (getline(qt, read_line)) {
                 pt << read_line;
                 pt << "\n";
             }
@@ -796,7 +796,7 @@ R"(
         std::vector<string> cfg_libcommands;
 
         // Read cfg
-        while(getline(qt, read_line)) {
+        while (getline(qt, read_line)) {
             if (std::regex_match(read_line, matches, reg_profile)) {
                 current_profile = matches[1];
                 continue;
