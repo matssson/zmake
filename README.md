@@ -19,21 +19,21 @@ Then just put the code in the /src folder, if you have any libraries put them in
 /include and /lib, or specify them along with other build flags in zmake.cfg,
 or put them globally in zmake/global/include and zmake/global/lib.
 
-Build and run the dev build with "zmake run".
-Build the release build with "zmake build".
-Build the debug build with "zmake debug".
-Open the most recently compiled build with "zmake open".
-Remove target files with "zmake clean".
+Build and run the dev build with "zmake run".<br>
+Build the release build with "zmake build".<br>
+Build the debug build with "zmake debug".<br>
+Open the most recently compiled build with "zmake open".<br>
+Remove target files with "zmake clean".<br>
 
 You can also add any "-gccflags" at the end of your command
-to compile with them, or the following built in commands:
-"-dev/-debug/-release" (change build profile),
-"-nocmd" (hide compiler command),
-"-notime" (hide compilation time),
-"-nobuild" (only running),
-"-nounity" (turn off unity builds),
-"-norun" (only building),
-"-run" (run after building),
+to compile with them, or the following built in commands:<br>
+"-dev/-debug/-release" (change build profile),<br>
+"-nocmd" (hide compiler command),<br>
+"-notime" (hide compilation time),<br>
+"-nobuild" (only running),<br>
+"-nounity" (turn off unity builds),<br>
+"-norun" (only building),<br>
+"-run" (run after building),<br>
 or "-gcc/-clang/-clang++" to change compiler.
 
 # Features
@@ -119,11 +119,9 @@ If you add -o or not doesn't matter unless you specify -c -S or -E.
 
 #### Compiler flags:
 
--pedantic   -> -Wpedantic (just use Wpedantic always)
-
+-pedantic   -> -Wpedantic (just use Wpedantic always)<br>
 -save-temps -> -save-temps=obj (not yet implemented)
 
 #### Clang-cl specific improvements (also applies for MSVC, but support for that compiler is limited overall):
--fexceptions -> -EHsc
-
+-fexceptions -> -EHsc<br>
 -O0          -> -Od     // Clang-cl recognizes -Ofast as -O2 by default, but not -O0.
