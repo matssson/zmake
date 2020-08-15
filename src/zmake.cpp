@@ -14,7 +14,7 @@
 using std::string;
 namespace fs = std::filesystem;
 
-static const string ZMAKE_VERSION = "ZMAKE VERSION 0.4.1";
+static const string ZMAKE_VERSION = "ZMAKE VERSION 0.4.2";
 
 // OS-SPECIFICS
 #ifdef _WIN32
@@ -174,15 +174,15 @@ static inline string syscall(const char* const cmd) {
 static inline bool get_yes_or_no() {
     string input;
     get_the_input:
-        std::cout << "- " << std::flush;
-        getline(std::cin, input);
-        transform(input.begin(), input.end(), input.begin(), [](unsigned char c){ return toupper(c); });
-        if (input == "YES" || input == "Y" || input == "JA" || input == "J") return true;
-        else if (input == "NO" || input == "N" || input == "NEJ") {
-            std::cout << "- Exiting." << std::endl;
-            return false;
-        }
-        else goto get_the_input;
+    std::cout << "- " << std::flush;
+    getline(std::cin, input);
+    transform(input.begin(), input.end(), input.begin(), [](unsigned char c){ return toupper(c); });
+    if (input == "YES" || input == "Y" || input == "JA" || input == "J") return true;
+    else if (input == "NO" || input == "N" || input == "NEJ") {
+        std::cout << "- Exiting." << std::endl;
+        return false;
+    }
+    else goto get_the_input;
 }
 
 // Resets defaultconfig.cfg
@@ -243,7 +243,7 @@ static inline bool str_is_in_vec(const string& str, const std::vector<fs::path>&
     You can also type zmake gl projname (gl = gitless), to make a new program without git.
     -dev, -debug, -release
     -gcc, -clang-, -clang++, -msvc
-    -nocmd, -notime, -nobuild, -norun, -run
+    -nocmd, -notime, -nobuild, -nounity, -norun, -run
     -std=c++17 = /std:c+17 = -c++17 => c++17
     * * * Clang-cl/msvc specific * * *:
     -fexceptions -> -EHsc
@@ -280,30 +280,30 @@ int main(int argc, char* argv[]) {
     string date = timestr();
 
     // Things you can change from profile standards
-    string build_profile = "";     // "debug"
-    string compiler = "";          // "gcc"
-    string cversion = "";          // "c++17"
-    string optimization = "";
-    string program_name = "";
-    bool has_build_profile_flag = false;    // Otherwise use std
-    bool has_compiler_flag = false;         // Otherwise use std
-    bool has_cversion_flag = false;         // Otherwise use std
-    bool has_optimization_flag = false;     // Otherwise use standards
-    bool has_program_name_flag = false;     // Otherwise name it according to cfg or main.zpp
+    string program_name   = "";     // "boo"
+    string cversion       = "";     // "c++17"
+    string build_profile  = "";     // "debug"
+    string compiler       = "";     // "gcc"
+    string optimization   = "";     // "-Ofast"
 
-    bool has_output_flag = false;           // Otherwise just add -o
+    bool has_program_name_flag  = false;    // Otherwise name it according to cfg
+    bool has_cversion_flag      = false;    // Otherwise use standard
+    bool has_build_profile_flag = false;    // Otherwise use standard
+    bool has_compiler_flag      = false;    // Otherwise use standard
+    bool has_optimization_flag  = false;    // Otherwise use standard
+    bool has_output_flag        = false;    // Otherwise just add -o, NOTE: doesn't have its own line in the cfg
 
-    std::vector<string> cppfiles;      // *.c *.cpp target/debug/main.cpp
-    bool use_build_files = false;           // Otherwise build /src
+    std::vector<string> cppfiles;       // *.c *.cpp target/debug/main.cpp
+    bool build_manual_files = false;    // Otherwise build /src
 
-    bool use_no_run = false;            // Otherwise run it, NOTE: use_no_build is STATE_OPEN
-    bool use_no_time = false;           // Otherwise print compilation time
-    bool use_no_unity = false;          // Otherwise use unity builds
-    bool use_no_cmd = false;            // Otherwise hide the cmd
-    bool use_only_cpp = false;          // Otherwise add zpp features
-    bool use_gitless = false;           // Don't create .git and .gitignore
+    bool use_run    = true;     // Otherwise don't run it, NOTE: "dont_use_build" is STATE_OPEN
+    bool use_time   = true;     // Otherwise don't print compilation time
+    bool use_unity  = true;     // Otherwise don't use unity builds
+    bool use_cmd    = true;     // Otherwise don't show the command
+    bool use_zpp    = true;     // Otherwise don't add zpp features
+    bool use_git    = true;     // Otherwise don't create .git and .gitignore
 
-    // For building both with and without use_build_files
+    // For building both with and without build_manual_files
     std::vector<string> build_files;
     std::vector<fs::path> zfiles;  // /src, /lib, /global/lib
     std::vector<fs::path> zfiles_inclist;  // /src, /lib, /global/lib
@@ -343,7 +343,7 @@ int main(int argc, char* argv[]) {
         }
     }
     else if (streq(commands.at(0), "new", "gl", "gitless")) {
-        if (streq(commands.at(0), "gl", "gitless")) use_gitless = true;
+        if (streq(commands.at(0), "gl", "gitless")) use_git = false;
         state = STATE_NEW;
         commands.erase(commands.begin());
         if (commands.size() == 0) {
@@ -351,14 +351,14 @@ int main(int argc, char* argv[]) {
             return EXIT_FAILURE;
         }
     }
-    // Gets STATE_BUILD/STATE_OPEN, use_build_files and has_build_profile_flag
+    // Gets STATE_BUILD/STATE_OPEN, build_manual_files and has_build_profile_flag
     // Needs to get build_profile for opening -debug
     else if (streq(commands.at(0), "open", "run", "build", "debug") || is_file_include(commands.at(0))) {
         state = STATE_BUILD;    // Can change to STATE_OPEN with "open" or "-nobuild"
 
         // If you build with files
         if (is_file_include(commands.at(0))) {
-            use_build_files = true;
+            build_manual_files = true;
             for (unsigned int i = 0; i < commands.size(); i++) {
                 if (is_file_include(commands.at(i))) {
                     build_files.emplace_back(commands.at(i));
@@ -372,15 +372,15 @@ int main(int argc, char* argv[]) {
             if (streq(commands.at(0), "run"))   build_profile = "dev";
             if (streq(commands.at(0), "build")) build_profile = "release";
             if (streq(commands.at(0), "debug")) build_profile = "debug";
-            if (streq(commands.at(0), "build", "debug")) use_no_run = true;
-            else use_no_run = false;
+            if (streq(commands.at(0), "build", "debug")) use_run = false;
+            else use_run = true;
             commands.erase(commands.begin());
         }
 
         // -nobuild THEN -norun
         for (unsigned int i = 0; i < commands.size(); i++) {
             if (streq(commands.at(i), "-nobuild", "/nobuild")) {
-                if (use_build_files) {  // If building with somefile.zpp commands
+                if (build_manual_files) {   // If building with somefile.zpp commands
                     print("- Need to build when only specifying files, aborting.\n");
                     return EXIT_FAILURE;
                 }
@@ -395,12 +395,12 @@ int main(int argc, char* argv[]) {
                     print("- Neither building nor running, done!\n");
                     return EXIT_SUCCESS;
                 }
-                use_no_run = true;
+                use_run = false;
                 commands.erase(commands.begin() + i);
                 i--;
             }
             if (streq(commands.at(i), "-run", "/run")) {
-                use_no_run = false;
+                use_run = true;
                 commands.erase(commands.begin() + i);
                 i--;
             }
@@ -540,7 +540,7 @@ R"(
         fs::create_directory("target");
         // Get git username and email
         if (git_success) {
-            if (!use_gitless) {
+            if (use_git) {
                 pt.open("include/.gitignore", std::ios::trunc);
                 pt << DEFAULT_GITIGNORE_EMPTY;
                 pt.close();
@@ -557,7 +557,7 @@ R"(
             username = trim(syscall("git config user.name"));
             mail = trim(syscall("git config user.email"));
         }
-        // Create main.zpp
+        // Create main.cpp
         pt.open("src/main.cpp", std::ios::trunc);
         pt << DEFAULT_PROGRAM;
         pt.close();
@@ -585,7 +585,7 @@ R"(
     }
 
     if (state == STATE_OPEN) {
-        if (!use_build_files && !fs::exists("src")) {
+        if (!build_manual_files && !fs::exists("src")) {
             print("- Not a zmake directory, aborting.\n");
             return EXIT_FAILURE;
         }
@@ -644,7 +644,7 @@ R"(
     }
 
     if (state == STATE_BUILD) {
-        if (!use_build_files && !fs::exists("src")) {
+        if (!build_manual_files && !fs::exists("src")) {
             print("- Not a zmake directory, aborting.\n");
             return EXIT_FAILURE;
         }
@@ -695,17 +695,17 @@ R"(
                 }
             }
             else if (streq(commands.at(i), "-nocmd", "/nocmd")) {
-                use_no_cmd = true;
+                use_cmd = false;
                 commands.erase(commands.begin() + i);
                 i--;
             }
             else if (streq(commands.at(i), "-notime", "/notime")) {
-                use_no_time = true;
+                use_time = false;
                 commands.erase(commands.begin() + i);
                 i--;
             }
             else if (streq(commands.at(i), "-nounity", "/nounity")) {
-                use_no_unity = true;
+                use_unity = false;
                 commands.erase(commands.begin() + i);
                 i--;
             }
@@ -714,13 +714,13 @@ R"(
             }
             // Loop to get long names, first time we manipulate program_name
             else if (streq(program_name, "")) {
-                long_name:
+                get_long_name:
                 if (!streq(commands.at(i).substr(0, 1), "-", "/")) {
                     has_program_name_flag = true;
                     if (!streq(program_name, "")) program_name += " ";
                     program_name += commands.at(i);
                     commands.erase(commands.begin() + i);
-                    if (i < commands.size()) goto long_name;
+                    if (i < commands.size()) goto get_long_name;
                     else i--;
                 }
             }
@@ -731,9 +731,9 @@ R"(
         else program_name = "\"" + program_name + "\"";
 
         // Fix config
-        if (use_build_files && !reset_default_config()) return EXIT_FAILURE;
+        if (build_manual_files && !reset_default_config()) return EXIT_FAILURE;
 
-        if (!use_build_files && !fs::exists("zmake.cfg")) {
+        if (!build_manual_files && !fs::exists("zmake.cfg")) {
             print("- \"zmake.cfg\" missing in current directory.\n");
             print("- Do you want to use the default config? [y/n]\n");
             if (!get_yes_or_no()) return EXIT_FAILURE;
@@ -782,7 +782,7 @@ R"(
         const std::regex reg_lib_inc("(.*?)\\((.*?)\\)(.*)");
         if (streq(build_profile, "")) build_profile = "dev";
 
-        if (!use_build_files) qt.open("zmake.cfg");
+        if (!build_manual_files) qt.open("zmake.cfg");
         else qt.open(ZMAKE_ROOT + FOLDER_NOTATION + "global" + FOLDER_NOTATION + "defaultconfig.cfg");
 
         if (!qt.is_open()) {
@@ -896,7 +896,7 @@ R"(
         default_commands.clear();
 
         // Get all files to compile
-        if (!use_build_files) {
+        if (!build_manual_files) {
             for (const auto& p: fs::recursive_directory_iterator("src")) {
                 if (fs::is_directory(p.path())) continue;
                 //in = p.path().relative_path().parent_path().u8string() + FOLDER_NOTATION;
@@ -934,7 +934,7 @@ R"(
             }
         }
 
-        if (zfiles_inclist.size() == 0) use_only_cpp = true;
+        if (zfiles_inclist.size() == 0) use_zpp = false;
 
         // Find main
         int main_entry = -1;
@@ -955,19 +955,19 @@ R"(
                 return EXIT_FAILURE;
             }
             while (getline(qt, read_line)) {
-                mainfinder:
+                find_main:
                 if (in_string) {
                     if (std::regex_match(read_line, matches, reg_string_end)) {
                         in_string = false;
                         read_line = matches[2];
-                        goto mainfinder;
+                        goto find_main;
                     }
                 }
                 else if (in_comment) {
                     if (std::regex_match(read_line, matches, reg_comment_end)) {
                         in_comment = false;
                         read_line = matches[2];
-                        goto mainfinder;
+                        goto find_main;
                     }
                 }
                 else if (std::regex_match(read_line, matches, reg_comment_one_line)) {
@@ -978,14 +978,14 @@ R"(
                         if (in_string) continue;
                         else {
                             in_string = true;
-                            goto mainfinder;
+                            goto find_main;
                         }
                     }
                     if (std::regex_match(read_line, matches, reg_comment_start) && !in_string) {
                         if (in_comment) continue;
                         else {
                             in_comment = true;
-                            goto mainfinder;
+                            goto find_main;
                         }
                     }
                     // Get { on second line, put this after comment and strings
@@ -1002,7 +1002,7 @@ R"(
                     if (read_line_loop) {
                         read_line = read_line_next;
                         read_line_loop = false;
-                        goto mainfinder;
+                        goto find_main;
                     }
                 }
             }
@@ -1013,7 +1013,7 @@ R"(
             if (main_entry != -1) break;
         }
         if (main_entry == -1) {
-            use_only_cpp = true;
+            use_zpp = false;
             if (cppfiles.size() == 0)  {
                 print("- Couldn't find main function, aborting.\n");
                 return EXIT_FAILURE;
@@ -1030,7 +1030,7 @@ R"(
         }
 
         /* Put the .zpp files into a cpp file */
-        if (!use_only_cpp) zfiles.emplace_back(zfiles_inclist.at(0));  // main
+        if (use_zpp) zfiles.emplace_back(zfiles_inclist.at(0));  // main
 
         // 2D vector to store includes along with which files included them to show in *_zmake.cpp
         std::vector<std::vector<string>> include_list;
@@ -1069,19 +1069,19 @@ R"(
             add_functions = "// From " + zfiles.at(i).u8string() + "\n";
 
             while (getline(qt, read_line)) {
-                forwarddeclarer:
+                forward_declare:
                 if (in_string) {
                     if (std::regex_match(read_line, matches, reg_string_end)) {
                         in_string = false;
                         read_line = matches[2];
-                        goto forwarddeclarer;
+                        goto forward_declare;
                     }
                 }
                 else if (in_comment) {
                     if (std::regex_match(read_line, matches, reg_comment_end)) {
                         in_comment = false;
                         read_line = matches[2];
-                        goto forwarddeclarer;
+                        goto forward_declare;
                     }
                 }
                 else if (std::regex_match(read_line, matches, reg_comment_one_line)) {
@@ -1092,14 +1092,14 @@ R"(
                         if (in_string) continue;
                         else {
                             in_string = true;
-                            goto forwarddeclarer;
+                            goto forward_declare;
                         }
                     }
                     if (std::regex_match(read_line, matches, reg_comment_start) && !in_string) {
                         if (in_comment) continue;
                         else {
                             in_comment = true;
-                            goto forwarddeclarer;
+                            goto forward_declare;
                         }
                     }
                     // Get { on second line, put this after comment and strings
@@ -1121,14 +1121,14 @@ R"(
                                         zfiles.emplace_back(zfiles_inclist.at(j));
                                     }
                                     incfile = "//#include \"" + zpp_file_inc + "\"";
-                                    goto inc_label;
+                                    goto add_include;
                                 }
                             }
                             print("- Couldn't find file \"", zpp_file_inc, "\", aborting.\n");
                             return EXIT_FAILURE;
                         }
                         else incfile = "#include " + incfile;
-                        inc_label:
+                        add_include:
                         for (unsigned int j = 0; j < include_list.size(); j++) {
                             if (streq(incfile, include_list.at(j).at(0))) {
                                 include_already_exists = true;
@@ -1177,7 +1177,7 @@ R"(
                     if (read_line_loop) {
                         read_line = read_line_next;
                         read_line_loop = false;
-                        goto forwarddeclarer;
+                        goto forward_declare;
                     }
                 }
             }
@@ -1258,36 +1258,44 @@ R"(
             main_cpp += "\n";
         }
 
-        // Unity includes
-        if (!use_no_unity) {
-            if (cppfiles.size() != 0) main_cpp += "\n//// Unity includes\n";
+
+
+        if (use_unity && cppfiles.size() > 0) {
+            main_cpp += "\n//// Unity includes\n";
             for (unsigned int i = 0; i < cppfiles.size(); i++) {
                 main_cpp += "#include \"" + cppfiles.at(i) + "\"\n";
             }
         }
+        if (forward_structs.size() > 0) {
+            main_cpp += "\n//// Structs, classes and unions\n";
+            for (unsigned int i = 1; i < forward_structs.size(); i++) {
+                main_cpp += forward_structs.at(i);
+                main_cpp += "\n";
+            }
+            main_cpp += forward_structs.at(0);
+        }
+        if (forward_functions.size() > 0) {
+            main_cpp += "\n//// Functions\n";
+            for (unsigned int i = 1; i < forward_functions.size(); i++) {
+                main_cpp += forward_functions.at(i);
+                main_cpp += "\n";
+            }
+            main_cpp += forward_functions.at(0);
+        }
+        if (forward_zcode.size() > 0) {
+            main_cpp += "\n//// Code";
+            for (unsigned int i = 1; i < forward_zcode.size(); i++) {
+                main_cpp += forward_zcode.at(i);
+            }
+            main_cpp += forward_zcode.at(0);
+        }
 
-        if (forward_structs.size() != 0) main_cpp += "\n//// Structs, classes and unions\n";
-        for (unsigned int i = 1; i < forward_structs.size(); i++) {
-            main_cpp += forward_structs.at(i);
-            main_cpp += "\n";
-        }
-        main_cpp += forward_structs.at(0);
-        if (forward_functions.size() != 0) main_cpp += "\n//// Functions\n";
-        for (unsigned int i = 1; i < forward_functions.size(); i++) {
-            main_cpp += forward_functions.at(i);
-            main_cpp += "\n";
-        }
-        main_cpp += forward_functions.at(0);
-        if (forward_zcode.size() != 0) main_cpp += "\n//// Code";
-        for (unsigned int i = 1; i < forward_zcode.size(); i++) {
-            main_cpp += forward_zcode.at(i);
-        }
-        main_cpp += forward_zcode.at(0);
+
 
         // Add it to cppfiles (program_name looks like "boo" with quotations)
         string open_filename = program_name.substr(1, program_name.length() - 2) + "_zmake.cpp";
-        if (!use_build_files) open_filename = "target" + FOLDER_NOTATION + open_filename;
-        if (!use_no_unity || !use_only_cpp) {
+        if (!build_manual_files) open_filename = "target" + FOLDER_NOTATION + open_filename;
+        if (use_unity || use_zpp) {
             pt.open(open_filename, std::ios::trunc);
             pt << main_cpp;
             pt.close();
@@ -1318,7 +1326,7 @@ R"(
             commands.insert(commands.begin(), temp_str);
         }
         // Put them into the commands
-        if (use_no_unity) {
+        if (!use_unity) {
             for (unsigned int i = 0; i < cppfiles.size(); i++) {
                 commands.insert(commands.begin(), cppfiles.at(i));
             }
@@ -1370,14 +1378,14 @@ R"(
         // Add build profile to program_name and fix compile target
         program_name = program_name.substr(0, program_name.length()-1) + "_" + build_profile + "\"";
         string target_name = program_name;
-        if (!use_build_files) target_name = "\"target" + FOLDER_NOTATION + target_name.substr(1);
+        if (!build_manual_files) target_name = "\"target" + FOLDER_NOTATION + target_name.substr(1);
 
         if (ON_WINDOWS && !ends_with(target_name, ".exe\"")) target_name = target_name.substr(0, target_name.length()-1) + ".exe\"";
 
         compilation_string += " " + target_name;
         if (!streq(libpath_cl, "")) compilation_string += " -link" + libpath_cl;
 
-        if (!use_no_cmd) {
+        if (use_cmd) {
             print("- Compiling ", program_name, " with the following:\n", compilation_string, "\n\n");
         }
 
@@ -1390,12 +1398,12 @@ R"(
         std::chrono::duration<double, std::milli> fp_zmake = b - a;
         std::chrono::duration<double, std::milli> fp_compiler = c - b;
 
-        if (!use_no_time) {
+        if (use_time) {
             print("- zmake took ", fp_zmake.count(), " ms, ", compiler, " took ", fp_compiler.count(), " ms.\n");
         }
 
         // Open the program
-        if (!use_no_run) {
+        if (use_run) {
             for (const auto& p: fs::recursive_directory_iterator("target")) {
                 if (fs::is_directory(p.path())) continue;
                 if (!streq(p.path().extension().u8string(), "", ".exe")) continue;
