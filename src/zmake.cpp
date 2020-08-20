@@ -251,8 +251,8 @@ static inline bool str_is_in_vec(const string& str, const std::vector<fs::path>&
     Adds libraries with -link -libpath:"dir" at the end of the compilation string.
 
     BUGS: Opening an executable without an extension doesn't work on Windows.
-    - Opening "C:\zmake\target\Ny mapp\zztest_debug"
-    'C:\zmake\target\Ny' is not recognized as an internal or external command, operable program or batch file.
+    - Opening "C:\zmake\build\Ny mapp\zztest_debug"
+    'C:\zmake\build\Ny' is not recognized as an internal or external command, operable program or batch file.
     Running build files with zmake *.* takes in all files like zmake.cfg and adds it to the program name.
     If { goes on the next line, the regexes don't work.
 
@@ -293,7 +293,7 @@ int main(int argc, char* argv[]) {
     bool has_optimization_flag  = false;    // Otherwise use standard
     bool has_output_flag        = false;    // Otherwise just add -o, NOTE: doesn't have its own line in the cfg
 
-    std::vector<string> cppfiles;       // *.c *.cpp target/debug/main.cpp
+    std::vector<string> cppfiles;       // *.c *.cpp build/debug/main.cpp
     bool build_manual_files = false;    // Otherwise build /src
 
     bool use_run    = true;     // Otherwise don't run it, NOTE: "dont_use_build" is STATE_OPEN
@@ -338,7 +338,7 @@ int main(int argc, char* argv[]) {
         commands.erase(commands.begin());
         if (commands.size() != 0) {
             print("- Too many arguments, aborting.\n");
-            print("- Note: \"clean\" only deletes the target directory.\n");
+            print("- Note: \"clean\" only deletes the build directory.\n");
             return EXIT_FAILURE;
         }
     }
@@ -462,7 +462,7 @@ R"(
 - Build the release build with "zmake build".
 - Build the debug build with "zmake debug".
 - Open the most recently compiled build with "zmake open".
-- Remove target files with "zmake clean".
+- Remove build files with "zmake clean".
 
 - You can also add any "-gccflags" at the end of your command
 - to compile with them, or the following built in commands:
@@ -489,7 +489,7 @@ R"(
             return EXIT_FAILURE;
         }
         std::uintmax_t del_num = 0;
-        for (const auto& p: fs::recursive_directory_iterator("target")) {
+        for (const auto& p: fs::recursive_directory_iterator("build")) {
             if (fs::is_directory(p)) continue;
             if (streq(p.path().filename().u8string(), ".gitignore")) continue;
             if (fs::remove(p)) del_num++;
@@ -537,7 +537,7 @@ R"(
         fs::create_directory("include");
         fs::create_directory("lib");
         fs::create_directory("src");
-        fs::create_directory("target");
+        fs::create_directory("build");
         // Get git username and email
         if (git_success) {
             if (use_git) {
@@ -547,7 +547,7 @@ R"(
                 pt.open("lib/.gitignore", std::ios::trunc);
                 pt << DEFAULT_GITIGNORE_EMPTY;
                 pt.close();
-                pt.open("target/.gitignore", std::ios::trunc);
+                pt.open("build/.gitignore", std::ios::trunc);
                 pt << DEFAULT_GITIGNORE;
                 pt.close();
             }
@@ -590,15 +590,15 @@ R"(
             return EXIT_FAILURE;
         }
 
-        if (!fs::exists("target")) {
-            print("- Target directory doesn't exist, aborting.\n");
+        if (!fs::exists("build")) {
+            print("- Build directory doesn't exist, aborting.\n");
             return EXIT_FAILURE;
         }
         // Find latest executable
         std::vector<fs::path> programs;
         programs.reserve(3);
 
-        for (const auto& p: fs::recursive_directory_iterator("target")) {
+        for (const auto& p: fs::recursive_directory_iterator("build")) {
             if (fs::is_directory(p.path())) continue;
             if (!streq(p.path().extension().u8string(), "", ".exe")) continue;
             programs.emplace_back(p.path());
@@ -1294,7 +1294,7 @@ R"(
 
         // Add it to cppfiles (program_name looks like "boo" with quotations)
         string open_filename = program_name.substr(1, program_name.length() - 2) + "_zmake.cpp";
-        if (!build_manual_files) open_filename = "target" + FOLDER_NOTATION + open_filename;
+        if (!build_manual_files) open_filename = "build" + FOLDER_NOTATION + open_filename;
         if (use_unity || use_zpp) {
             pt.open(open_filename, std::ios::trunc);
             pt << main_cpp;
@@ -1375,14 +1375,14 @@ R"(
             compilation_string += " " + commands.at(i);
         }
 
-        // Add build profile to program_name and fix compile target
+        // Add build profile to program_name and fix compile build
         program_name = program_name.substr(0, program_name.length()-1) + "_" + build_profile + "\"";
-        string target_name = program_name;
-        if (!build_manual_files) target_name = "\"target" + FOLDER_NOTATION + target_name.substr(1);
+        string build_name = program_name;
+        if (!build_manual_files) build_name = "\"build" + FOLDER_NOTATION + build_name.substr(1);
 
-        if (ON_WINDOWS && !ends_with(target_name, ".exe\"")) target_name = target_name.substr(0, target_name.length()-1) + ".exe\"";
+        if (ON_WINDOWS && !ends_with(build_name, ".exe\"")) build_name = build_name.substr(0, build_name.length()-1) + ".exe\"";
 
-        compilation_string += " " + target_name;
+        compilation_string += " " + build_name;
         if (!streq(libpath_cl, "")) compilation_string += " -link" + libpath_cl;
 
         if (use_cmd) {
@@ -1404,7 +1404,7 @@ R"(
 
         // Open the program
         if (use_run) {
-            for (const auto& p: fs::recursive_directory_iterator("target")) {
+            for (const auto& p: fs::recursive_directory_iterator("build")) {
                 if (fs::is_directory(p.path())) continue;
                 if (!streq(p.path().extension().u8string(), "", ".exe")) continue;
                 if (!streq(program_name, "\"" + p.path().stem().u8string() + "\"")) continue;
@@ -1414,7 +1414,7 @@ R"(
                 if (abs(filetime - filetime_est) > 1) continue;
 
                 print("- Opening ", program_name, ":\n");
-                system(target_name.c_str());
+                system(build_name.c_str());
                 return EXIT_SUCCESS;
             }
 

@@ -22,4 +22,4 @@ zmake:
 	$(COMPILER) $(FLAGS) src/zmake.cpp $(FAST) -o zmake
 
 clean:
-	rm -rf target/* zmake.exe zmake
+	rm -rf zmake.exe zmake

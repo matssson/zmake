@@ -23,7 +23,7 @@ Build and run the dev build with "zmake run".<br>
 Build the release build with "zmake build".<br>
 Build the debug build with "zmake debug".<br>
 Open the most recently compiled build with "zmake open".<br>
-Remove target files with "zmake clean".<br>
+Remove build files with "zmake clean".<br>
 
 You can also add any "-gccflags" at the end of your command
 to compile with them, or the following built in commands:<br>
