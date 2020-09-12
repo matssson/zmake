@@ -48,17 +48,17 @@ To include another file, just type:
 # Installing zmake
 ### Windows
 I strongly recommend using clang-cl for Windows development, since it has full
-functionality with all the system headers (unlike gcc) and it has better warnings,
-and faster performing code than MSVC. To get clang-cl, you first need to install
-MSVC by downloading Visual Studio, and then install clang and adding it to PATH
-by downloading the latest version of LLVM.
+functionality with all the system headers on Windows (unlike gcc), produces faster
+performing machine code than MSVC, and has good warnings. To get clang-cl, you first
+need to install MSVC by downloading Visual Studio, and then install clang and adding
+it to PATH by downloading the latest version of LLVM.
 
 On Windows, download the code to C:\\zmake, and add C:\\zmake to the PATH, by going to:
 ```
 "Edit the system environment variables" ("Redigera systemets miljövariabler")
 -> "Environment Variables" -> "Path" -> "Edit" -> "New"
 ```
-And putting in "C:\\zmake", then build it with Clang (or use the precompiled binary):
+And putting in "C:\\zmake", then build it with Clang:
 ```
 clang-cl -std:c++17 -EHsc -Ofast -march=native src/zmake.cpp -o zmake
 ```
@@ -74,7 +74,7 @@ This is then run every time you start the computer. To update without restarting
 ```
 source .bashrc
 ```
-Or if you don't wanna add a PATH variable you can create the following alias:
+Or if you don't want to add a PATH variable you can create the following alias:
 ```
 alias zmake="/$HOME/zmake/zmake"
 ```
@@ -118,7 +118,6 @@ You can also compile using simply "zmake file.z" or "zmake file.z -flag name".
 If you add -o or not doesn't matter unless you specify -c -S or -E.
 
 #### Compiler flags:
-
 -pedantic   -> -Wpedantic (just use Wpedantic always)<br>
 -save-temps -> -save-temps=obj (not yet implemented)
 
