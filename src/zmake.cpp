@@ -1331,7 +1331,7 @@ R"(
                 commands.insert(commands.begin(), cppfiles.at(i));
             }
         }
-        else commands.insert(commands.begin(), open_filename);
+        else commands.insert(commands.begin(), "\"" + open_filename + "\"");
 
         // Fix cversion and compiler flags
         if (ends_with(compiler, "cl")) cversion = "-std:" + cversion;
@@ -1407,9 +1407,9 @@ R"(
             for (const auto& p: fs::recursive_directory_iterator("build")) {
                 if (fs::is_directory(p.path())) continue;
                 if (!streq(p.path().extension().u8string(), "", ".exe")) continue;
-                if (!streq(program_name, "\"" + p.path().stem().u8string() + "\"")) continue;
+                if (!streq(program_name, "\"" + p.path().stem().string() + "\"")) continue;
 
-                auto filetime = file_to_t(p.path().u8string());
+                auto filetime = file_to_t(p.path().string());
 
                 if (abs(filetime - filetime_est) > 1) continue;
 
