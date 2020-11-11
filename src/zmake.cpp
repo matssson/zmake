@@ -254,14 +254,14 @@ static inline bool str_is_in_vec(const string& str, const std::vector<fs::path>&
     - Opening "C:\zmake\build\Ny mapp\zztest_debug"
     'C:\zmake\build\Ny' is not recognized as an internal or external command, operable program or batch file.
     Running build files with zmake *.* takes in all files like zmake.cfg and adds it to the program name.
-    If { goes on the next line, the regexes don't work.
-
+    
     NOTES:
     "C:\\zmake\\global\\defaultconfig.cfg" path
     C:\zmake\global\defaultconfig.cfg      u8string
     Since everything is in the same compilation unit, we might want to automatically set everything to static.
 
     TODO:
+    Fix friend functions
     Add command "zmake reset local/global (config)"
     Passing "-o", "-c", "-S", "-E" and -save-temps to clang-cl
     save-temps -> save-temps=obj
